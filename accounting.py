@@ -67,10 +67,30 @@ def calculateTotals(workers):
         worker.setPreTipWage(weeklyPay)
     return [totalTips, totalHours]
 
-# adds wages and tips at the hourly rate for each worker
-def calculatePayroll(tipRate, workers):
+# sums tips by day of the week
+def calculateTips(tipRate, workers):
+    tipsByDay = [0,0,0,0,0,0,0]
+    workersPerDay = [0,0,0,0,0,0,0]
     for worker in workers:
-        totalPay = tipRate * worker._tipableHours + worker._wage
+        previousDay = worker._workShifts[0]._weekDay
+        if worker._workShifts[0]._tipableHours > 0 and worker._name not in specialTips:
+            workersPerDay[worker._workShifts[0]._weekDay] += 1
+        for day in worker._workShifts:
+            if previousDay != day._weekDay and day._tipableHours > 0 and worker._name not in specialTips:
+                workersPerDay[day._weekDay] += 1
+                previousDay = day._weekDay
+            tipsByDay[day._weekDay] += day._tips
+
+    return [tipsByDay, workersPerDay]
+
+# adds wages and tips at the hourly rate for each worker
+def calculatePayroll(workers, tipsByDay, workersPerDay):
+    for worker in workers:
+        totalPay = 0
+        for day in worker._workShifts:
+            if day._tipableHours > 0:
+                totalPay += tipsByDay[day._weekDay] / workersPerDay[day._weekDay]
+        totalPay += worker._wage
         worker.setPostTipWage(totalPay)
 
 # writes corrected output to file
@@ -87,7 +107,8 @@ def run():
     tips,hours = calculateTotals(workers)
     tipWageHourly = tips/hours
 
-    calculatePayroll(tipWageHourly, workers)
+    tips,days = calculateTips(tipWageHourly, workers)
+    calculatePayroll(workers, tips, days)
     generateOutput(workers)
 
 if __name__=="__main__":

@@ -1,6 +1,6 @@
 import datetime, pandas
 
-ignoredWorkers = [ "cook", "reception", "manager" ]
+ignoredWorkers = [ "cook", "reception", "manager", "mezzanine server" ]
 
 class shift():
     def __init__(self, data, shiftNum, baseRate=None, hoursTillNow=0):
@@ -9,6 +9,7 @@ class shift():
         self._job = data["job"][shiftNum]
         self._hoursTillNow = hoursTillNow
         self._tipableHours = 0
+        self._weekDay = 0
 
         startTime = data["start"][shiftNum]
         endTime = data["end"][shiftNum]
@@ -42,6 +43,7 @@ class shift():
                 end = end[:3] + str(int(end[3:5])-1) + end[5:-7] + "10:00PM"
                 self._error = "Didn't clock out evening (4:00AM)."
         end = pandas.to_datetime(end)
+        self._weekDay = start.day_of_week
         totalTime = (end-start) / datetime.timedelta(hours=1)
         return totalTime
 

@@ -2,7 +2,6 @@ import pandas
 import Worker
 
 dataFile = "Data/payroll.xlsx"
-
 specialTips = [ "CLINT BROWN", "DOUG", "Comp" ]
 
 # pulls raw data from excel file
@@ -74,6 +73,10 @@ def calculatePayroll(tipRate, workers):
         totalPay = tipRate * worker._tipableHours + worker._wage
         worker.setPostTipWage(totalPay)
 
+# writes corrected output to file
+def generateOutput(workers):
+    pass
+
 # main
 def run():
     rawData = getDataFromFile(dataFile)
@@ -85,8 +88,7 @@ def run():
     tipWageHourly = tips/hours
 
     calculatePayroll(tipWageHourly, workers)
-
-    print ("hey")
+    generateOutput(workers)
 
 if __name__=="__main__":
     run()

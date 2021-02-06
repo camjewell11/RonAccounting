@@ -43,7 +43,6 @@ def createWorkers(data):
         if type(data["name"][x]) is str:
             if x > 0:
                 endRow = x
-                # if data["name"][startRow] not in specialTips:
                 newWorker = Worker.worker(data, startRow, endRow)
                 workers.append(newWorker)
                 startRow = x
@@ -60,8 +59,10 @@ def calculateTotals(workers):
     totalHours = 0
     for worker in workers:
         weeklyPay = 0
+        # calculates wage totals per shift
         for shift in worker._workShifts:
             weeklyPay += shift._rate*shift._hours
+        # returns total hours worked and total tips made
         totalTips += worker._weeklyTips
         totalHours += worker._weeklyHours
         worker.setPreTipWage(weeklyPay)
@@ -72,18 +73,20 @@ def calculateTips(tipRate, workers):
     tipsByDay = [0,0,0,0,0,0,0]
     workersPerDay = [0,0,0,0,0,0,0]
     for worker in workers:
+        # sum tips per day
         for day in worker._workShifts:
             tipsByDay[day._weekDay] += day._tips
+        # count number of workers per day
         for shift in range(len(worker._staffed)):
             if worker._staffed[shift] and worker._tipableHours > 0:
                 workersPerDay[shift] += 1
-
     return [tipsByDay, workersPerDay]
 
 # adds wages and tips at the hourly rate for each worker
 def calculatePayroll(workers, tipsByDay, workersPerDay):
     for worker in workers:
         totalPay = worker._wage
+        # only count tips when working and allowed tips
         for day in worker._workShifts:
             if day._tipableHours > 0:
                 totalPay += tipsByDay[day._weekDay] / workersPerDay[day._weekDay]

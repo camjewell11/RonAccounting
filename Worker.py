@@ -7,6 +7,7 @@ class worker():
         self._weeklyTips = 0
         self._weeklyHours = 0
         self._tipableHours = 0
+        self._staffed = [False, False, False, False, False, False, False]
 
         data = self.trimData(data, startRow, endRow)
         self.getWorkDays(data)
@@ -38,6 +39,7 @@ class worker():
             self._weeklyTips += newDay._tips
             self._weeklyHours += newDay._hours
             self._tipableHours += newDay._tipableHours
+            self._staffed[x] = True
 
     def setPreTipWage(self, weeklyPay):
         self._wage = weeklyPay

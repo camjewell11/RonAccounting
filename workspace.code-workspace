@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"git.ignoreLimitWarning": true,
+		"cSpell.words": [
+			"numpy",
+			"sikorski"
+		]
+	}
+}

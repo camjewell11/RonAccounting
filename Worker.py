@@ -39,7 +39,7 @@ class worker():
             self._weeklyTips += newDay._tips
             self._weeklyHours += newDay._hours
             self._tipableHours += newDay._tipableHours
-            self._staffed[x] = True
+            self._staffed[newDay._weekDay] = True
 
     def setPreTipWage(self, weeklyPay):
         self._wage = weeklyPay

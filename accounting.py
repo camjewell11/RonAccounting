@@ -44,9 +44,9 @@ def createWorkers(data):
         if type(data["name"][x]) is str:
             if x > 0:
                 endRow = x
-                if data["name"][startRow] not in specialTips:
-                    newWorker = Worker.worker(data, startRow, endRow)
-                    workers.append(newWorker)
+                # if data["name"][startRow] not in specialTips:
+                newWorker = Worker.worker(data, startRow, endRow)
+                workers.append(newWorker)
                 startRow = x
             else:
                 startRow = x
@@ -82,8 +82,8 @@ def run():
 
     workers = createWorkers(usefulData)
     tips,hours = calculateTotals(workers)
-
     tipWageHourly = tips/hours
+
     calculatePayroll(tipWageHourly, workers)
 
     print ("hey")

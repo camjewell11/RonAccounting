@@ -53,34 +53,47 @@ def createWorkers(data):
 
     return workers
 
-# calculates pay for each worker; returns total tips and hours
+# calculates pay for each worker
 def calculateTotals(workers):
-    totalTips = 0
-    totalHours = 0
     for worker in workers:
         weeklyPay = 0
         # calculates wage totals per shift
-        for shift in worker._workShifts:
-            weeklyPay += shift._rate*shift._hours
-        # returns total hours worked and total tips made
-        totalTips += worker._weeklyTips
-        totalHours += worker._weeklyHours
+        for day in worker._workShifts:
+            for shift in day:
+                if shift != None:
+                    weeklyPay += shift._rate*shift._hours
         worker.setPreTipWage(weeklyPay)
-    return [totalTips, totalHours]
+    return workers
 
-# sums tips by day of the week
-def calculateTips(tipRate, workers):
-    tipsByDay = [0,0,0,0,0,0,0]
-    workersPerDay = [0,0,0,0,0,0,0]
+# sums tips per shift by day of the week
+def calculateTotalTipsPerShift(workers):
+    morningTipsByDay   = [0,0,0,0,0,0,0]
+    afternoonTipsByDay = [0,0,0,0,0,0,0]
     for worker in workers:
         # sum tips per day
         for day in worker._workShifts:
-            tipsByDay[day._weekDay] += day._tips
-        # count number of workers per day
+            for shift in day:
+                if shift.isMorningShift():
+                    morningTipsByDay[shift._weekDay] += shift._tips
+                elif shift.isAfternoonShift():
+                    afternoonTipsByDay[shift._weekDay] += shift._tips
+    return [morningTipsByDay, afternoonTipsByDay]
+
+def calculateWorkersPerShift(workers):
+    morningWorkersPerDay   = [0,0,0,0,0,0,0]
+    afternoonWorkersPerDay = [0,0,0,0,0,0,0]
+    for worker in workers:
+        mShifts = [0,0,0,0,0,0,0]
+        aShifts = [0,0,0,0,0,0,0]
+        # count number of workers per shift per day
         for shift in range(len(worker._staffed)):
-            if worker._staffed[shift] and worker._tipableHours > 0:
-                workersPerDay[shift] += 1
-    return [tipsByDay, workersPerDay]
+            if worker._workShifts[shift].isMorningShift():
+                mShifts[shift] +=1
+            if shift._workShifts[shift].isAfternoonShift():
+                aShifts[shift] +=1
+        morningWorkersPerDay[shift] += 1
+        afternoonWorkersPerDay[shift] += 1
+    return [morningWorkersPerDay, afternoonWorkersPerDay]
 
 # adds wages and tips at the hourly rate for each worker
 def calculatePayroll(workers, tipsByDay, workersPerDay):
@@ -103,11 +116,11 @@ def run():
     usefulData = consolidateData(trimmedData)
 
     workers = createWorkers(usefulData)
-    tips,hours = calculateTotals(workers)
-    tipWageHourly = tips/hours
+    workers = calculateTotals(workers)
 
-    tips,days = calculateTips(tipWageHourly, workers)
-    calculatePayroll(workers, tips, days)
+    mTips,aTips = calculateTotalTipsPerShift(workers)
+    days = calculateWorkersPerShift(workers)
+    calculatePayroll(workers, mTips, aTips, days)
     generateOutput(workers)
 
 if __name__=="__main__":

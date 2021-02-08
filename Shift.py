@@ -43,7 +43,16 @@ class shift():
                 end = end[:3] + str(int(end[3:5])-1) + end[5:-7] + "10:00PM"
                 self._error = "Didn't clock out evening (4:00AM)."
         end = pandas.to_datetime(end)
-        self._weekDay = start.day_of_week
+
+        # set morning shift or afternoon shift based on time
+        if start.hour < 12:
+            self._morningShift = True
+            self._afternoonShift = False
+        else:
+            self._morningShift = False
+            self._afternoonShift = True
+
+        self._weekDay = start.dayofweek
         totalTime = (end-start) / datetime.timedelta(hours=1)
         return totalTime
 
@@ -67,3 +76,9 @@ class shift():
             if ignoredJob in job.lower():
                 return True
         return False
+
+    def isMorningShift(self):
+        return True
+
+    def isAfternoonShift(self):
+        return True

@@ -2,11 +2,9 @@ import Shift
 
 class worker():
     def __init__(self, data, startRow, endRow):
-        self._workShifts = []
-        self._name = data["name"][startRow]
-        self._weeklyTips = 0
         self._weeklyHours = 0
-        self._tipableHours = 0
+        self._name = data["name"][startRow]
+        self._workShifts = [[], [], [], [], [], [], []]
         self._staffed = [False, False, False, False, False, False, False]
 
         data = self.trimData(data, startRow, endRow)
@@ -14,6 +12,7 @@ class worker():
 
     def trimData(self, data, start, end):
         trimmedData = {}
+        workingTitle = ""
         for entry in data:
             trimmedData[entry] = []
             for x in range(start, end):
@@ -35,10 +34,8 @@ class worker():
             else:
                 newDay = Shift.shift(data, x, baseRate, hoursTillNow)
                 hoursTillNow += newDay._hours
-            self._workShifts.append(newDay)
-            self._weeklyTips += newDay._tips
+            self._workShifts[newDay._weekDay].append(newDay)
             self._weeklyHours += newDay._hours
-            self._tipableHours += newDay._tipableHours
             self._staffed[newDay._weekDay] = True
 
     def setPreTipWage(self, weeklyPay):

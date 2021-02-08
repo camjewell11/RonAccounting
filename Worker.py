@@ -5,11 +5,12 @@ class worker():
         self._weeklyHours = 0
         self._name = data["name"][startRow]
         self._workShifts = [[], [], [], [], [], [], []]
-        self._staffed = [False, False, False, False, False, False, False]
 
         data = self.trimData(data, startRow, endRow)
         self.getWorkDays(data)
+        # self.postProcessing()
 
+    # removes all data without Shift tag in data
     def trimData(self, data, start, end):
         trimmedData = {}
         workingTitle = ""
@@ -25,18 +26,31 @@ class worker():
                         trimmedData[entry].append(data[entry][x])
         return trimmedData
 
+    # creates Shift objects with relevant data
     def getWorkDays(self, data):
         for x in range(len(data["working"])):
             if x == 0:
-                newDay = Shift.shift(data, x)
+                newDay = Shift.shift()
+                newDay.construct(self._name, data, x)
                 baseRate = newDay._rate
                 hoursTillNow = newDay._hours
             else:
-                newDay = Shift.shift(data, x, baseRate, hoursTillNow)
+                newDay = Shift.shift()
+                newDay.construct(self._name, data, x, baseRate, hoursTillNow)
                 hoursTillNow += newDay._hours
-            self._workShifts[newDay._weekDay].append(newDay)
-            self._weeklyHours += newDay._hours
-            self._staffed[newDay._weekDay] = True
+
+            # add shift to worker if not ignored by config file
+            if not newDay.shiftIsIgnored():
+                self._workShifts[newDay._weekDay].append(newDay)
+                self._weeklyHours += newDay._hours
+
+            if newDay._subShift != []:
+                newShift = Shift.shift()
+                newShift.subShift(self._name, newDay._subShift[0], newDay._subShift[1], newDay._subShift[2], newDay._rate, newDay._baseRate, newDay._tips, newDay._hoursTillNow)
+                # add shift to worker if not ignored by config file
+                if not newShift.shiftIsIgnored():
+                    self._workShifts[newShift._weekDay].append(newShift)
+                    self._weeklyHours += newShift._hours
 
     def setPreTipWage(self, weeklyPay):
         self._wage = weeklyPay

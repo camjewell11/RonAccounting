@@ -88,9 +88,9 @@ def calculateWorkersPerShift(workers):
         # count number of workers per shift per day
         for day in range(len(worker._staffed)):
             for shift in worker._workShifts[day]:
-                if shift.isMorningShift():
+                if shift.isMorningShift() and not shift.jobIsIgnored(shift._job):
                     mShifts[day] +=1
-                elif shift.isAfternoonShift():
+                elif shift.isAfternoonShift() and not shift.jobIsIgnored(shift._job):
                     aShifts[day] +=1
 
         for day in range(len(mShifts)):
@@ -102,13 +102,16 @@ def calculateWorkersPerShift(workers):
     return [morningWorkersPerDay, afternoonWorkersPerDay]
 
 # adds wages and tips at the hourly rate for each worker
-def calculatePayroll(workers, tipsByDay, workersPerDay):
+def calculatePayroll(workers, morningTips, afternoonTips, morningWorkers, afternoonWorkers):
     for worker in workers:
         totalPay = worker._wage
         # only count tips when working and allowed tips
-        for day in worker._workShifts:
-            if day._tipableHours > 0:
-                totalPay += tipsByDay[day._weekDay] / workersPerDay[day._weekDay]
+        for day in range(len(worker._workShifts)):
+            for shift in worker._workShifts[day]:
+                if shift.isMorningShift() and not shift.jobIsIgnored(shift._job):
+                    totalPay += morningTips[day] / morningWorkers[day]
+                elif shift.isAfternoonShift() and not shift.jobIsIgnored(shift._job):
+                    totalPay += afternoonTips[day] / afternoonWorkers[day]
         worker.setPostTipWage(totalPay)
 
 # writes corrected output to file

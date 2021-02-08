@@ -16,9 +16,6 @@ class shift():
         self._hours = self.getTime(startTime, endTime)
         self._hoursTillNow += self._hours
 
-        if not self.jobIsIgnored(self._job):
-            self._tipableHours = self._hours
-
         self._rate = self.checkRate(data["rate"][shiftNum], baseRate)
         self._tips = data["tips"][shiftNum]
         if pandas.isnull(self._tips):

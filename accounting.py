@@ -86,13 +86,19 @@ def calculateWorkersPerShift(workers):
         mShifts = [0,0,0,0,0,0,0]
         aShifts = [0,0,0,0,0,0,0]
         # count number of workers per shift per day
-        for shift in range(len(worker._staffed)):
-            if worker._workShifts[shift].isMorningShift():
-                mShifts[shift] +=1
-            if shift._workShifts[shift].isAfternoonShift():
-                aShifts[shift] +=1
-        morningWorkersPerDay[shift] += 1
-        afternoonWorkersPerDay[shift] += 1
+        for day in range(len(worker._staffed)):
+            for shift in worker._workShifts[day]:
+                if shift.isMorningShift():
+                    mShifts[day] +=1
+                elif shift.isAfternoonShift():
+                    aShifts[day] +=1
+
+        for day in range(len(mShifts)):
+            if mShifts[day] != 0:
+                morningWorkersPerDay[day] += 1
+        for day in range(len(aShifts)):
+            if aShifts[day] != 0:
+                afternoonWorkersPerDay[day] += 1
     return [morningWorkersPerDay, afternoonWorkersPerDay]
 
 # adds wages and tips at the hourly rate for each worker
@@ -119,8 +125,8 @@ def run():
     workers = calculateTotals(workers)
 
     mTips,aTips = calculateTotalTipsPerShift(workers)
-    days = calculateWorkersPerShift(workers)
-    calculatePayroll(workers, mTips, aTips, days)
+    mWorkers, aWorkers = calculateWorkersPerShift(workers)
+    calculatePayroll(workers, mTips, aTips, mWorkers, aWorkers)
     generateOutput(workers)
 
 if __name__=="__main__":

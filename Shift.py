@@ -78,7 +78,7 @@ class shift():
         return False
 
     def isMorningShift(self):
-        return True
+        return self._morningShift
 
     def isAfternoonShift(self):
-        return True
+        return self._afternoonShift

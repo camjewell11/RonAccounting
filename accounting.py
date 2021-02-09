@@ -116,16 +116,19 @@ def calculateTotals(workers):
 
 # sums tips per shift by day of the week
 def calculateTotalTipsPerShift(workers):
-    morningTipsByDay   = [0,0,0,0,0,0,0]
-    afternoonTipsByDay = [0,0,0,0,0,0,0]
+    morningTipsByDay   = [[],[],[],[],[],[],[]]
+    afternoonTipsByDay = [[],[],[],[],[],[],[]]
     for worker in workers:
         # sum tips per shift per day
         for day in worker._workShifts:
             for shift in day:
                 if shift.isMorningShift():
-                    morningTipsByDay[shift._weekDay] += shift._tips
+                    morningTipsByDay[shift._weekDay].append(shift._tips)
                 elif shift.isAfternoonShift():
-                    afternoonTipsByDay[shift._weekDay] += shift._tips
+                    afternoonTipsByDay[shift._weekDay].append(shift._tips)
+
+                # morningTipsByDay[shift._weekDay] = list(filter(lambda num: num != 0, morningTipsByDay[shift._weekDay]))
+                # afternoonTipsByDay[shift._weekDay] = list(filter(lambda num: num != 0, afternoonTipsByDay[shift._weekDay]))
 
     return morningTipsByDay, afternoonTipsByDay
 
@@ -164,10 +167,10 @@ def calculatePayroll(workers, morningTips, afternoonTips, morningWorkers, aftern
         for day in range(len(worker._workShifts)):
             for shift in worker._workShifts[day]:
                 if shift.isMorningShift() and not shift.jobIsIgnored():
-                    totalTips += morningTips[day] / morningWorkers[day]
+                    totalTips += sum(morningTips[day]) / morningWorkers[day]
                 elif shift.isAfternoonShift() and not shift.jobIsIgnored():
-                    totalTips += afternoonTips[day] / afternoonWorkers[day]
-        worker._totalTips = totalTips
+                    totalTips += sum(afternoonTips[day]) / afternoonWorkers[day]
+        worker._adjustedTips = totalTips
         worker.setPostTipWage(totalPay + totalTips)
 
     return workers
@@ -236,7 +239,7 @@ def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOf
     totalTips = 0
     totalPay = 0
     for worker in FOH:
-        details = [worker._name, worker._weeklyHours, worker._baseRate, worker._wage, worker._tips, worker._totalTips, worker._pay]
+        details = [worker._name, worker._weeklyHours, worker._baseRate, worker._wage, worker._tips, worker._adjustedTips, worker._pay]
         frontOfHousePay.append(details)
         for day in worker._workShifts:
             for shift in day:
@@ -244,7 +247,7 @@ def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOf
                                 shift._hours, shift._rate, shift._tips, "-", shift._error]
                 shifts.append(shiftDetails)
                 totalTips += shift._tips
-        shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-",worker._totalTips,worker._pay,""])
+        shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-",worker._adjustedTips,worker._pay,""])
         totalPay += worker._pay
 
     for worker in BOH:
@@ -259,7 +262,7 @@ def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOf
         totalPay += worker._pay
 
     for worker in reception:
-        details = [worker._name, worker._weeklyHours, worker._baseRate, worker._pay]
+        details = [worker._name, worker._weeklyHours, worker._baseRate, worker._unpaidTips, worker._pay]
         receptionPay.append(details)
         for day in worker._workShifts:
             for shift in day:
@@ -271,7 +274,7 @@ def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOf
         totalPay += worker._pay
 
     for worker in managers:
-        details = [worker._name, worker._weeklyHours, worker._baseRate, worker._pay]
+        details = [worker._name, worker._weeklyHours, worker._tips]
         managersPay.append(details)
         for day in worker._workShifts:
             for shift in day:
@@ -279,26 +282,41 @@ def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOf
                                 shift._hours, shift._rate, "-", "-", shift._error]
                 shifts.append(shiftDetails)
                 totalTips += shift._tips
-        shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-","-",worker._pay,""])
+        shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-","-","",""])
 
     return frontOfHousePay, backOfHousePay, receptionPay, managersPay, shifts, totalTips, totalPay
 
 # writes corrected output to file
-def generateOutput(FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers):
-    frontOfHousePay = [["Worker","Hours","Rate","Pay","Individual Tips","Adjusted Tips","Total"]]
-    backOfHousePay = [["Worker","Hours","Rate","Total"]]
-    receptionPay = [["Worker","Hours","Rate","Total"]]
-    managersPay = [["Worker","Hours","Rate","Total"]]
-    shifts = [["Worker","Raw Start Time","Raw End Time","Adj. Start Time","Adj. End Time","Hours","Rate","Tips","Pay","Error"]]
+def generateOutput(workers, FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers):
+    frontOfHousePay = [["Worker","Hours","Base Rate","Pay","Individual Tips","Adjusted Tips","Total"]]
+    backOfHousePay = [["Worker","Hours","Base Rate","Total"]]
+    receptionPay = [["Worker","Hours","Base Rate","Tips","Total"]]
+    managersPay = [["Worker","Hours","Tips"]]
+    shifts = [["Worker","Raw Start Time","Raw End Time","Adj. Start Time","Adj. End Time","Hours","Paid Rate","Tips","Pay","Comments"]]
+    tipsData = [["Worker","Start Time","End Time","Raw Tips","Adjusted Tips","# Coworkers","Coworkers' Tips","Tips Average","Paid Tips"]]
 
     frontOfHousePay,backOfHousePay,receptionPay,managersPay,shifts,tips,pay = getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOfHousePay, receptionPay, managersPay, shifts)
+    shifts.append(["Grand Totals","","","","","","",tips,"",pay,""])
 
-    for shift in shifts[1:]:
-        pass
+    for worker in workers:
+        for day in range(len(worker._workShifts)):
+            for shift in worker._workShifts[day]:
+                if not shift.jobIsIgnored():
+                    dayTips = []
+                    numCoworkers = 0
+                    if shift._morningShift:
+                        dayTips = copy.deepcopy(mTips[day])
+                        numCoworkers = mWorkers[day]
+                    elif shift._afternoonShift:
+                        dayTips = copy.deepcopy(aTips[day])
+                        numCoworkers = aWorkers[day]
+                    dayTips.remove(shift._tips)
+                    tipsData.append([shift._name, shift._startTime, shift._endTime, shift._rawTips, shift._tips, numCoworkers-1, sum(dayTips), (shift._tips+sum(dayTips))/numCoworkers])
+        if worker._adjustedTips != 0:
+            tipsData.append(["","","","","","","","",worker._adjustedTips])
 
-    shifts.append(["Totals","","","","","","","",tips,pay,""])
-
-    with xlsxwriter.Workbook("Data/adjustedPayroll.xlsx") as workbook:
+    # write worksheets
+    with xlsxwriter.Workbook("Data/consolidatedPayroll.xlsx") as workbook:
         FOHworksheet = workbook.add_worksheet("FOH")
         for rowNum,row in enumerate(frontOfHousePay):
             FOHworksheet.write_row(rowNum, 0, row)
@@ -308,9 +326,15 @@ def generateOutput(FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorke
         RECworksheet = workbook.add_worksheet("Reception")
         for rowNum,row in enumerate(receptionPay):
             RECworksheet.write_row(rowNum, 0, row)
+        MANworksheet = workbook.add_worksheet("Managers")
+        for rowNum,row in enumerate(managersPay):
+            MANworksheet.write_row(rowNum, 0, row)
         shiftWorksheet = workbook.add_worksheet("Shifts")
         for rowNum,row in enumerate(shifts):
             shiftWorksheet.write_row(rowNum, 0, row)
+        tipsWorksheet = workbook.add_worksheet("Tips")
+        for rowNum,row in enumerate(tipsData):
+            tipsWorksheet.write_row(rowNum, 0, row)
 
         # set column widths and formats
         money = workbook.add_format({'num_format':'$#,##0.00'})
@@ -319,16 +343,23 @@ def generateOutput(FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorke
         FOHworksheet.set_column(4,5,15)
         FOHworksheet.set_column(2,6,None,money)
 
-        BOHworksheet.set_column(0,0,15)
-        # BOHworksheet.set_column(2,3,None,money)
-
+        BOHworksheet.set_column(0,0,25)
+        BOHworksheet.set_column(2,3,None,money)
         RECworksheet.set_column(0,0,15)
-        # RECworksheet.set_column(2,3,None,money)
+        RECworksheet.set_column(2,4,None,money)
+        MANworksheet.set_column(0,0,15)
+        MANworksheet.set_column(2,2,None,money)
 
-        shiftWorksheet.set_column(0,4,20)
+        shiftWorksheet.set_column(0,4,18)
         shiftWorksheet.set_column(6,9,None,money)
-        shiftWorksheet.set_column(9,9,40)
+        shiftWorksheet.set_column(9,9,60)
         shiftWorksheet.freeze_panes(1,0)
+
+        tipsWorksheet.set_column(0,2,20)
+        tipsWorksheet.set_column(5,5,15)
+        tipsWorksheet.set_column(3,4,15,money)
+        tipsWorksheet.set_column(6,8,15,money)
+        tipsWorksheet.freeze_panes(1,0)
 
 # main
 def run():
@@ -349,7 +380,7 @@ def run():
     mWorkers, aWorkers = calculateWorkersPerShift(FOH)
     workers = calculatePayroll(workers, mTips, aTips, mWorkers, aWorkers)
     FOH,BOH,reception,managers = sortWorkersByLocation(workers)
-    generateOutput(FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers)
+    generateOutput(workers, FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers)
     print ("")
 
 if __name__=="__main__":

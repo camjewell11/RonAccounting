@@ -16,6 +16,8 @@ class shift():
         self._double = False
 
         self._tips = data["tips"][shiftNum]
+        self._rawTips = self._tips
+        self._unpaidTips = 0
 
         self._rawStartTime = data["start"][shiftNum]
         self._rawEndTime = data["end"][shiftNum]
@@ -25,6 +27,7 @@ class shift():
 
         if pandas.isnull(self._tips):
             self._tips = 0
+        self.postProcessing()
 
     # "constructor" used when splitting shifts
     def subShift(self, name, job, start, midPoint, end, rate, baseRate, tips, hoursTillNow):
@@ -37,7 +40,9 @@ class shift():
         self._weekDay = 0
         self._double = False
 
+        self._rawTips = 0
         self._tips = tips
+        self._unpaidTips = 0
 
         self._rawStartTime = start
         self._rawEndTime = end
@@ -47,6 +52,7 @@ class shift():
 
         if pandas.isnull(self._tips):
             self._tips = 0
+        self.postProcessing()
 
     def getTime(self, startTime, endTime):
         start = startTime
@@ -84,7 +90,7 @@ class shift():
             self._error += "Worked a double.\n"
             midpoint = start[:-7] + "02:00PM"
             self._endTime = midpoint
-            self._subShift = [self._job, self._rawStartTime, midpoint, self._rawEndTime, tips]
+            self._subShift = [self._job, self._rawStartTime, midpoint, self._rawEndTime, self._rawTips, tips]
             self._double = True
 
             # split shift in two; designated midpoint for subshift to be created
@@ -106,7 +112,7 @@ class shift():
                 newHours = self._hoursTillNow + self._hours
                 if newHours > 40:
                     rate = self._baseRate * 1.5
-                #     self._subShift = [self._job, self._rawStartTime, self._rawStartTime, self._rawEndTime, 0]
+                # self._subShift = [self._job, self._rawStartTime, self._rawStartTime, self._rawEndTime, 0]
         elif self._hoursTillNow > 40 and rate == self._baseRate * 1.5:
             self._error = "Overtime."
         else:
@@ -129,6 +135,11 @@ class shift():
                 elif self.isAfternoonShift and shift["shift"] == "PM":
                     return True
         return False
+
+    # if shift doesn't earn tips, store tips in another variable for output
+    def postProcessing(self):
+        if self.shiftIsIgnored():
+            self._unpaidTips = self._tips
 
     # used to calculate tips split
     def isMorningShift(self):

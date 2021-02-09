@@ -29,11 +29,12 @@ class worker():
     # creates Shift objects with relevant data
     def getWorkDays(self, data):
         for x in range(len(data["working"])):
+            hoursTillNow = self._weeklyHours
             if x == 0:
                 newDay = Shift.shift()
                 newDay.construct(self._name, data, x)
                 self._baseRate = newDay._rate
-                hoursTillNow = newDay._hours
+                hoursTillNow += newDay._hours
             else:
                 newDay = Shift.shift()
                 newDay.construct(self._name, data, x, self._baseRate, hoursTillNow)
@@ -46,19 +47,23 @@ class worker():
 
             if newDay._subShift != []:
                 newShift = Shift.shift()
-                newShift.subShift(self._name, newDay._subShift[0], newDay._subShift[1], newDay._subShift[2], newDay._subShift[3], newDay._rate, newDay._baseRate, newDay._tips, newDay._hoursTillNow)
+                newShift.subShift(self._name, newDay._subShift[0], newDay._subShift[1], newDay._subShift[2], newDay._subShift[3], newDay._rate, newDay._baseRate, 0, newDay._hoursTillNow)
                 # add shift to worker if not ignored by config file
                 if not newShift.shiftIsIgnored():
                     self._workShifts[newShift._weekDay].append(newShift)
                     self._weeklyHours += newShift._hours
 
-    # set unadjusted tips
+    # set unadjusted tips, set unpaid tips
     def postProcessing(self):
         tips = 0
+        unpaidTips = 0
         for day in self._workShifts:
             for shift in day:
                 tips += shift._tips
+                if shift.shiftIsIgnored():
+                    unpaidTips += shift._unpaidTips
         self._tips = tips
+        self._unpaidTips = unpaidTips
 
     def setPreTipWage(self, weeklyPay):
         self._wage = weeklyPay

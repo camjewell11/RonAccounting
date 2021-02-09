@@ -1,7 +1,8 @@
-import copy, json, pandas
-import Worker
+import copy, pandas
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
+
+import Worker
 
 dataFile = "Data/payroll.xlsx"
 
@@ -62,7 +63,40 @@ def postProcessing(workers):
             for shift in range(len(worker._workShifts[day])-1):
                 # double shift
                 if worker._workShifts[day][shift]._double and not worker._workShifts[day][shift].jobIsIgnored():
-                    coworkers = findCoworkers(workers, worker._workShifts[day][shift])
+                    mCoworkers, aCoworkers = findCoworkers(workers, worker._workShifts[day][shift], worker._workShifts[day][shift+1])
+
+                    # this block calculates the average tips for the coworkers for each half of the shift in question
+                    # the tips for each half of the double are calculated based on the average for each half
+                    # typically, the afternoon will have more tips, so the average tips will be what is counted in
+                    # the second half of the double assuming the total tips are greater than the average for the
+                    # afternoon. Example: Eli makes 90 in tips on a double. The average tips for the afternoon is 60.
+                    # Eli's tips will be split across his double shift as 30-60.
+                    mTips = 0
+                    aTips = 0
+
+                    for coworker in mCoworkers:
+                        mTips += coworker._tips
+                    for coworker in aCoworkers:
+                        aTips += coworker._tips
+
+                    morningAverage = 0
+                    afternoonAverage = 0
+                    if len(mCoworkers) > 0:
+                        morningAverage = mTips / len(mCoworkers)
+                    if len(aCoworkers) > 0:
+                        afternoonAverage = aTips / len(aCoworkers)
+
+                    doubleShiftTips = worker._workShifts[day][shift]._tips
+                    afternoonDifference = doubleShiftTips - afternoonAverage
+
+                    # morning tips > afternoon
+                    if afternoonDifference < 0:
+                        worker._workShifts[day][shift]._tips = 0
+                        worker._workShifts[day][shift+1]._tips = doubleShiftTips
+                    # afternoon tips < morning
+                    else:
+                        worker._workShifts[day][shift+1]._tips = afternoonAverage
+                        worker._workShifts[day][shift]._tips = afternoonDifference
 
     return workers
 
@@ -134,21 +168,21 @@ def calculatePayroll(workers, morningTips, afternoonTips, morningWorkers, aftern
         worker.setPostTipWage(totalPay + totalTips)
     return workers
 
-# split workers by day
-def sortWorkersByDay(workers):
-    return workers
-
 # returns list of shifts on same day as provided shift
-def findCoworkers(workers, findShift):
-    coworkers = []
+def findCoworkers(workers, findShift, secondHalf):
+    morningCoworkers = []
+    afternoonCoworkers = []
     for worker in workers:
         for day in worker._workShifts:
             for shift in day:
                 # shift isn't self and is same time of day
                 if shift != findShift and shift._morningShift == findShift._morningShift:
-                    if shift._startTime[10:] == findShift._startTime[10:] and not shift.jobIsIgnored():
-                        coworkers.append(shift)
-    return coworkers
+                    if shift._startTime[:10] == findShift._startTime[:10] and not shift.jobIsIgnored():
+                        morningCoworkers.append(shift)
+                if shift != secondHalf and shift._afternoonShift == secondHalf._afternoonShift:
+                    if shift._startTime[:10] == secondHalf._startTime[:10] and not shift.jobIsIgnored():
+                        afternoonCoworkers.append(shift)
+    return morningCoworkers, afternoonCoworkers
 
 # split FOH, BOH, and reception into their own lists
 # workers that worked both reception and bar have their shifts split into FOH and BOH
@@ -191,9 +225,9 @@ def generateOutput(FOH, BOH, reception):
 
 # main
 def run():
-    # fileName = askopenfilename(title="Select payroll file(s)")
-    # rawData = getDataFromFile(fileName)
-    rawData = getDataFromFile(dataFile)
+    fileName = askopenfilename(title="Select payroll file(s)")
+    rawData = getDataFromFile(fileName)
+    # rawData = getDataFromFile(dataFile)
     trimmedData = trimFileData(rawData)
     usefulData = consolidateData(trimmedData)
 

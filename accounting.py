@@ -1,8 +1,11 @@
-import copy, pandas
+import copy, pandas, sys
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
-
 import Worker
+
+debug = False
+if len(sys.argv) > 1 and sys.argv[1] == "-nopick":
+    debug = True
 
 dataFile = "Data/payroll.xlsx"
 
@@ -225,9 +228,11 @@ def generateOutput(FOH, BOH, reception):
 
 # main
 def run():
-    fileName = askopenfilename(title="Select payroll file(s)")
-    rawData = getDataFromFile(fileName)
-    # rawData = getDataFromFile(dataFile)
+    if not debug:
+        fileName = askopenfilename(title="Select payroll file(s)")
+        rawData = getDataFromFile(fileName)
+    else:
+        rawData = getDataFromFile(dataFile)
     trimmedData = trimFileData(rawData)
     usefulData = consolidateData(trimmedData)
 

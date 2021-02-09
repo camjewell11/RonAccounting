@@ -5,7 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Calculate Accounting",
+            "name": "Calculate Accounting Debug",
+            "type": "python",
+            "request": "launch",
+            "program": "accounting.py",
+            "console": "integratedTerminal",
+            "args": ["-nopick"]
+        },{
+            "name": "Calculate Accounting Pick",
             "type": "python",
             "request": "launch",
             "program": "accounting.py",

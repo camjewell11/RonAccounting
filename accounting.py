@@ -1,4 +1,4 @@
-import copy, pandas, sys
+import copy, pandas, sys, xlsxwriter
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 import Worker
@@ -167,8 +167,9 @@ def calculatePayroll(workers, morningTips, afternoonTips, morningWorkers, aftern
                     totalTips += morningTips[day] / morningWorkers[day]
                 elif shift.isAfternoonShift() and not shift.jobIsIgnored():
                     totalTips += afternoonTips[day] / afternoonWorkers[day]
-        worker._tips = totalTips
+        worker._totalTips = totalTips
         worker.setPostTipWage(totalPay + totalTips)
+
     return workers
 
 # returns list of shifts on same day as provided shift
@@ -185,6 +186,7 @@ def findCoworkers(workers, findShift, secondHalf):
                 if shift != secondHalf and shift._afternoonShift == secondHalf._afternoonShift:
                     if shift._startTime[:10] == secondHalf._startTime[:10] and not shift.jobIsIgnored():
                         afternoonCoworkers.append(shift)
+
     return morningCoworkers, afternoonCoworkers
 
 # split FOH, BOH, and reception into their own lists
@@ -193,6 +195,7 @@ def sortWorkersByLocation(workers):
     FOH = []
     BOH = []
     reception = []
+    managers = []
     for worker in workers:
         # create temporary copies of workers to populate positional attendance with empty shifts
         FOHworkerCopy = copy.deepcopy(worker)
@@ -201,6 +204,8 @@ def sortWorkersByLocation(workers):
         BOHworkerCopy._workShifts = [[], [], [], [], [], [], []]
         recWorkerCopy = copy.deepcopy(worker)
         recWorkerCopy._workShifts = [[], [], [], [], [], [], []]
+        managerCopy   = copy.deepcopy(worker)
+        managerCopy  ._workShifts = [[], [], [], [], [], [], []]
 
         # examine each shift to determine location
         for day in range(len(worker._workShifts)):
@@ -211,6 +216,8 @@ def sortWorkersByLocation(workers):
                     BOHworkerCopy._workShifts[day].append(shift)
                 elif shift.isReception():
                     recWorkerCopy._workShifts[day].append(shift)
+                elif shift.isManager():
+                    managerCopy._workShifts[day].append(shift)
 
         # if shifts added to copy, append to workers list
         if FOHworkerCopy._workShifts != [[], [], [], [], [], [], []]:
@@ -219,12 +226,109 @@ def sortWorkersByLocation(workers):
             BOH.append(BOHworkerCopy)
         if recWorkerCopy._workShifts != [[], [], [], [], [], [], []]:
             reception.append(recWorkerCopy)
+        if managerCopy._workShifts != [[], [], [], [], [], [], []]:
+            managers.append(managerCopy)
 
-    return FOH, BOH, reception
+    return FOH, BOH, reception, managers
+
+# parses every worker and their individual shifts for information to be outputted
+def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOfHousePay, receptionPay, managersPay, shifts):
+    totalTips = 0
+    totalPay = 0
+    for worker in FOH:
+        details = [worker._name, worker._weeklyHours, worker._baseRate, worker._wage, worker._tips, worker._totalTips, worker._pay]
+        frontOfHousePay.append(details)
+        for day in worker._workShifts:
+            for shift in day:
+                shiftDetails = [shift._name, shift._rawStartTime,shift._rawEndTime,  shift._startTime, shift._endTime,
+                                shift._hours, shift._rate, shift._tips, "-", shift._error]
+                shifts.append(shiftDetails)
+                totalTips += shift._tips
+        shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-",worker._totalTips,worker._pay,""])
+        totalPay += worker._pay
+
+    for worker in BOH:
+        details = [worker._name, worker._weeklyHours, worker._baseRate, worker._pay]
+        backOfHousePay.append(details)
+        for day in worker._workShifts:
+            for shift in day:
+                shiftDetails = [shift._name, shift._rawStartTime, shift._rawEndTime, shift._startTime, shift._endTime,
+                                shift._hours, shift._rate, "-", "-", shift._error]
+                shifts.append(shiftDetails)
+        shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-","-",worker._pay,""])
+        totalPay += worker._pay
+
+    for worker in reception:
+        details = [worker._name, worker._weeklyHours, worker._baseRate, worker._pay]
+        receptionPay.append(details)
+        for day in worker._workShifts:
+            for shift in day:
+                shiftDetails = [shift._name, shift._rawStartTime, shift._rawEndTime, shift._startTime, shift._endTime,
+                                shift._hours, shift._rate, "-", "-", shift._error]
+                shifts.append(shiftDetails)
+                totalTips += shift._tips
+        shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-","-",worker._pay,""])
+        totalPay += worker._pay
+
+    for worker in managers:
+        details = [worker._name, worker._weeklyHours, worker._baseRate, worker._pay]
+        managersPay.append(details)
+        for day in worker._workShifts:
+            for shift in day:
+                shiftDetails = [shift._name, shift._rawStartTime, shift._rawEndTime, shift._startTime, shift._endTime,
+                                shift._hours, shift._rate, "-", "-", shift._error]
+                shifts.append(shiftDetails)
+                totalTips += shift._tips
+        shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-","-",worker._pay,""])
+
+    return frontOfHousePay, backOfHousePay, receptionPay, managersPay, shifts, totalTips, totalPay
 
 # writes corrected output to file
-def generateOutput(FOH, BOH, reception):
-    pass
+def generateOutput(FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers):
+    frontOfHousePay = [["Worker","Hours","Rate","Pay","Individual Tips","Adjusted Tips","Total"]]
+    backOfHousePay = [["Worker","Hours","Rate","Total"]]
+    receptionPay = [["Worker","Hours","Rate","Total"]]
+    managersPay = [["Worker","Hours","Rate","Total"]]
+    shifts = [["Worker","Raw Start Time","Raw End Time","Adj. Start Time","Adj. End Time","Hours","Rate","Tips","Pay","Error"]]
+
+    frontOfHousePay,backOfHousePay,receptionPay,managersPay,shifts,tips,pay = getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOfHousePay, receptionPay, managersPay, shifts)
+
+    for shift in shifts[1:]:
+        pass
+
+    shifts.append(["Totals","","","","","","","",tips,pay,""])
+
+    with xlsxwriter.Workbook("Data/adjustedPayroll.xlsx") as workbook:
+        FOHworksheet = workbook.add_worksheet("FOH")
+        for rowNum,row in enumerate(frontOfHousePay):
+            FOHworksheet.write_row(rowNum, 0, row)
+        BOHworksheet = workbook.add_worksheet("BOH")
+        for rowNum,row in enumerate(backOfHousePay):
+            BOHworksheet.write_row(rowNum, 0, row)
+        RECworksheet = workbook.add_worksheet("Reception")
+        for rowNum,row in enumerate(receptionPay):
+            RECworksheet.write_row(rowNum, 0, row)
+        shiftWorksheet = workbook.add_worksheet("Shifts")
+        for rowNum,row in enumerate(shifts):
+            shiftWorksheet.write_row(rowNum, 0, row)
+
+        # set column widths and formats
+        money = workbook.add_format({'num_format':'$#,##0.00'})
+
+        FOHworksheet.set_column(0,0,15)
+        FOHworksheet.set_column(4,5,15)
+        FOHworksheet.set_column(2,6,None,money)
+
+        BOHworksheet.set_column(0,0,15)
+        # BOHworksheet.set_column(2,3,None,money)
+
+        RECworksheet.set_column(0,0,15)
+        # RECworksheet.set_column(2,3,None,money)
+
+        shiftWorksheet.set_column(0,4,20)
+        shiftWorksheet.set_column(6,9,None,money)
+        shiftWorksheet.set_column(9,9,40)
+        shiftWorksheet.freeze_panes(1,0)
 
 # main
 def run():
@@ -241,10 +345,12 @@ def run():
     calculateTotals(workers)
 
     mTips,aTips = calculateTotalTipsPerShift(workers)
-    FOH,BOH,reception = sortWorkersByLocation(workers)
+    FOH,_,_,_ = sortWorkersByLocation(workers)
     mWorkers, aWorkers = calculateWorkersPerShift(FOH)
     workers = calculatePayroll(workers, mTips, aTips, mWorkers, aWorkers)
-    generateOutput(FOH,BOH,reception)
+    FOH,BOH,reception,managers = sortWorkersByLocation(workers)
+    generateOutput(FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers)
+    print ("")
 
 if __name__=="__main__":
     run()

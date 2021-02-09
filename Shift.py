@@ -25,11 +25,9 @@ class shift():
 
         if pandas.isnull(self._tips):
             self._tips = 0
-        if self._error == '':
-            self._error = False
 
     # "constructor" used when splitting shifts
-    def subShift(self, name, job, start, end, rate, baseRate, tips, hoursTillNow):
+    def subShift(self, name, job, start, midPoint, end, rate, baseRate, tips, hoursTillNow):
         self._name = name
         self._subShift = []
         self._error = ""
@@ -43,14 +41,12 @@ class shift():
 
         self._rawStartTime = start
         self._rawEndTime = end
-        self._hours = self.getTime(self._rawStartTime, self._rawEndTime)
+        self._hours = self.getTime(midPoint, self._rawEndTime)
         self._hoursTillNow += self._hours
         self._rate = self.checkRate(rate)
 
         if pandas.isnull(self._tips):
             self._tips = 0
-        if self._error == '':
-            self._error = False
 
     def getTime(self, startTime, endTime):
         start = startTime
@@ -88,7 +84,7 @@ class shift():
             self._error += "Worked a double.\n"
             midpoint = start[:-7] + "02:00PM"
             self._endTime = midpoint
-            self._subShift = [self._job, midpoint, self._rawEndTime, tips]
+            self._subShift = [self._job, self._rawStartTime, midpoint, self._rawEndTime, tips]
             self._double = True
 
             # split shift in two; designated midpoint for subshift to be created
@@ -109,7 +105,10 @@ class shift():
                 rate = self._baseRate
                 newHours = self._hoursTillNow + self._hours
                 if newHours > 40:
-                    pass
+                    rate = self._baseRate * 1.5
+                #     self._subShift = [self._job, self._rawStartTime, self._rawStartTime, self._rawEndTime, 0]
+        elif self._hoursTillNow > 40 and rate == self._baseRate * 1.5:
+            self._error = "Overtime."
         else:
             self._baseRate = rate
         return rate
@@ -148,5 +147,9 @@ class shift():
         return False
     def isReception(self):
         if self._job in config.receptionJobs:
+            return True
+        return False
+    def isManager(self):
+        if self._job in config.managerJobs:
             return True
         return False

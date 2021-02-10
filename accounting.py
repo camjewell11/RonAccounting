@@ -262,7 +262,7 @@ def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOf
         totalPay += worker._pay
 
     for worker in reception:
-        details = [worker._name, worker._weeklyHours, worker._baseRate, worker._unpaidTips, worker._pay]
+        details = [worker._name, worker._weeklyHours, worker._baseRate, worker._pay]
         receptionPay.append(details)
         for day in worker._workShifts:
             for shift in day:
@@ -290,7 +290,7 @@ def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOf
 def generateOutput(workers, FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers):
     frontOfHousePay = [["Worker","Hours","Base Rate","Pay","Individual Tips","Adjusted Tips","Total"]]
     backOfHousePay = [["Worker","Hours","Base Rate","Total"]]
-    receptionPay = [["Worker","Hours","Base Rate","Tips","Total"]]
+    receptionPay = [["Worker","Hours","Base Rate","Total"]]
     managersPay = [["Worker","Hours","Tips"]]
     shifts = [["Worker","Raw Start Time","Raw End Time","Adj. Start Time","Adj. End Time","Hours","Paid Rate","Tips","Pay","Comments"]]
     tipsData = [["Worker","Start Time","End Time","Raw Tips","Adjusted Tips","# Coworkers","Coworkers' Tips","Tips Average","Paid Tips"]]

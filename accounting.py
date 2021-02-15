@@ -1,6 +1,6 @@
 import copy, pandas, sys, xlsxwriter
 from tkinter import Tk
-from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilename, askdirectory
 import Worker
 
 debug = False
@@ -287,7 +287,7 @@ def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOf
     return frontOfHousePay, backOfHousePay, receptionPay, managersPay, shifts, totalTips, totalPay
 
 # writes corrected output to file
-def generateOutput(workers, FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers):
+def generateOutput(outputFileName, workers, FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers):
     frontOfHousePay = [["Worker","Hours","Base Rate","Pay","Individual Tips","Adjusted Tips","Total"]]
     backOfHousePay = [["Worker","Hours","Base Rate","Total"]]
     receptionPay = [["Worker","Hours","Base Rate","Total"]]
@@ -316,7 +316,7 @@ def generateOutput(workers, FOH, BOH, reception, managers, mTips, aTips, mWorker
             tipsData.append(["","","","","","","","",worker._adjustedTips])
 
     # write worksheets
-    with xlsxwriter.Workbook("Data/consolidatedPayroll.xlsx") as workbook:
+    with xlsxwriter.Workbook(outputFileName) as workbook:
         FOHworksheet = workbook.add_worksheet("FOH")
         for rowNum,row in enumerate(frontOfHousePay):
             FOHworksheet.write_row(rowNum, 0, row)
@@ -380,7 +380,11 @@ def run():
     mWorkers, aWorkers = calculateWorkersPerShift(FOH)
     workers = calculatePayroll(workers, mTips, aTips, mWorkers, aWorkers)
     FOH,BOH,reception,managers = sortWorkersByLocation(workers)
-    generateOutput(workers, FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers)
+    if not debug:
+        fileName = askdirectory(title="Select output location") + "/consolidatedPayroll.xlsx"
+    else:
+        fileName = "Data/consolidatedPayroll.xlsx"
+    generateOutput(fileName, workers, FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers)
     print ("")
 
 if __name__=="__main__":

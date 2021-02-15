@@ -69,7 +69,13 @@ class shift():
                 self._error = "Didn't clock out afternoon (4:00AM).\n"
             # convert clock-out error to 10PM (afternoon shift)
             else:
-                endTime = endTime[:3] + str(int(endTime[3:5])-1) + endTime[5:-7] + "10:00PM"
+                # special case for 1st of month rollback
+                if int(endTime[3:5])-1 == 0:
+                    tempTime = pandas.to_datetime(endTime)
+                    yesterday = tempTime - datetime.timedelta(days = 1)
+                    endTime = str(yesterday.month).zfill(2) + "/" + str(yesterday.day) + endTime[5:-7] + "10:00PM"
+                else:
+                    endTime = endTime[:3] + str(int(endTime[3:5])-1) + endTime[5:-7] + "10:00PM"
                 self._error = "Didn't clock out evening (4:00AM).\n"
         self._endTime = endTime
         endTime = pandas.to_datetime(endTime)

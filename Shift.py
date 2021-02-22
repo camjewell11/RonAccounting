@@ -27,6 +27,7 @@ class shift():
 
         if pandas.isnull(self._tips):
             self._tips = 0
+            self._rawTips = 0
         self.postProcessing()
 
     # "constructor" used when splitting shifts

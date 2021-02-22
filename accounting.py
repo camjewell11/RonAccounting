@@ -8,6 +8,30 @@ if len(sys.argv) > 1 and sys.argv[1] == "-nopick":
     debug = True
 
 dataFile = "Data/payroll.xlsx"
+outputLocation = "Data/consolidatedPayroll.xlsx"
+
+# prompts user for file in explorer, defaults to dataFile
+def getInputFile():
+    root = Tk()
+    root.withdraw()
+
+    fileName = dataFile
+    if not debug:
+        fileName = askopenfilename(title="Select payroll file(s)")
+        if fileName == dataFile:
+            print ("Using default datafile Data/payroll.xlsx")
+    return fileName
+
+# prompts user for output location, defaults to outputLocation
+def getOutputLocation():
+    fileName = outputLocation
+    if not debug:
+        fileName = askdirectory(title="Select output location")
+        if fileName == outputLocation:
+            print ("Using default output directory Data/")
+        else:
+            fileName += "/consolidatedPayroll.xlsx"
+    return fileName
 
 # pulls raw data from excel file
 def getDataFromFile(fileName):
@@ -90,16 +114,14 @@ def postProcessing(workers):
                         afternoonAverage = aTips / len(aCoworkers)
 
                     doubleShiftTips = worker._workShifts[day][shift]._tips
-                    afternoonDifference = doubleShiftTips - afternoonAverage
-
                     # morning tips > afternoon
-                    if afternoonDifference < 0:
-                        worker._workShifts[day][shift]._tips = 0
-                        worker._workShifts[day][shift+1]._tips = doubleShiftTips
+                    if doubleShiftTips < afternoonAverage:
+                        worker._workShifts[day][shift]._tips = morningAverage
+                        worker._workShifts[day][shift+1]._tips = doubleShiftTips - morningAverage
                     # afternoon tips < morning
                     else:
                         worker._workShifts[day][shift+1]._tips = afternoonAverage
-                        worker._workShifts[day][shift]._tips = afternoonDifference
+                        worker._workShifts[day][shift]._tips = doubleShiftTips - afternoonAverage
 
     return workers
 
@@ -238,6 +260,7 @@ def sortWorkersByLocation(workers):
 def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOfHousePay, receptionPay, managersPay, shifts):
     totalTips = 0
     totalPay = 0
+
     for worker in FOH:
         details = [worker._name, worker._weeklyHours, worker._baseRate, worker._wage, worker._tips, worker._adjustedTips, worker._pay]
         frontOfHousePay.append(details)
@@ -288,6 +311,7 @@ def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOf
 
 # writes corrected output to file
 def generateOutput(outputFileName, workers, FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers):
+    # set columns for each sheet
     frontOfHousePay = [["Worker","Hours","Base Rate","Pay","Individual Tips","Adjusted Tips","Total"]]
     backOfHousePay = [["Worker","Hours","Base Rate","Total"]]
     receptionPay = [["Worker","Hours","Base Rate","Total"]]
@@ -363,29 +387,39 @@ def generateOutput(outputFileName, workers, FOH, BOH, reception, managers, mTips
 
 # main
 def run():
-    if not debug:
-        fileName = askopenfilename(title="Select payroll file(s)")
-        rawData = getDataFromFile(fileName)
-    else:
-        rawData = getDataFromFile(dataFile)
+    # get input filename, defaults to dataFile
+    fileName = getInputFile()
+    # get data from file
+    rawData = getDataFromFile(fileName)
+    # pull out useful data
     trimmedData = trimFileData(rawData)
+    # consolidate into single line entries
     usefulData = consolidateData(trimmedData)
 
+    # create worker objects with their own shift objects
     workers = createWorkers(usefulData)
+    # recursive check of tip calculations
     workers = postProcessing(workers)
+    # sets workers' wage based on hours and rate per shift
     calculateTotals(workers)
 
+    # calculate total tips per shift; returns morning list and afternoon value for each day in list
     mTips,aTips = calculateTotalTipsPerShift(workers)
+    # returns lists of workers by location (FOH is only one used)
     FOH,_,_,_ = sortWorkersByLocation(workers)
+    # splits workers into list by shift for use in tips averaging
     mWorkers, aWorkers = calculateWorkersPerShift(FOH)
+    # finalizes all total pay (tips and wage)
     workers = calculatePayroll(workers, mTips, aTips, mWorkers, aWorkers)
+    # returns lists of workers by location for use in output
     FOH,BOH,reception,managers = sortWorkersByLocation(workers)
-    if not debug:
-        fileName = askdirectory(title="Select output location") + "/consolidatedPayroll.xlsx"
-    else:
-        fileName = "Data/consolidatedPayroll.xlsx"
+
+    # get output location
+    fileName = getOutputLocation()
+    # generate output
     generateOutput(fileName, workers, FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers)
-    print ("")
+
+    print ("Finished generating output.")
 
 if __name__=="__main__":
     run()

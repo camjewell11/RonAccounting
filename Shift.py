@@ -92,17 +92,17 @@ class shift():
         self._weekDay = startTime.dayofweek
         totalTime = (endTime-startTime) / datetime.timedelta(hours=1)
 
+        # double shift
         if totalTime > 10:
-            tips = self._tips
             self._error += "Worked a double.\n"
             midpoint = start[:-7] + "02:00PM"
             self._endTime = midpoint
-            self._subShift = [self._job, self._rawStartTime, midpoint, self._rawEndTime, self._rawTips, tips]
+            self._subShift = [self._job, self._rawStartTime, midpoint, self._rawEndTime, self._rawTips, self._tips]
             self._double = True
 
             # split shift in two; designated midpoint for subshift to be created
             midpoint = pandas.to_datetime(midpoint)
-            secondHalf = (endTime-midpoint) /datetime.timedelta(hours=1)
+            secondHalf = (endTime-midpoint) / datetime.timedelta(hours=1)
             totalTime -= secondHalf
 
         return totalTime
@@ -111,7 +111,18 @@ class shift():
     def checkRate(self, rate):
         if self._hoursTillNow > 40 and rate != self._baseRate * 1.5:
             self._error = "Overtime mismatch. Not awarded overtime for working 40+ hours.\n"
-            rate = self._baseRate * 1.5
+
+            if self._hoursTillNow - self._hours == 40:
+                self._error = "Adjusted rate to overtime rate."
+                rate = self._baseRate * 1.5
+            else:
+                midpoint = pandas.to_datetime(self._startTime)
+                midpoint += datetime.timedelta(hours=(self._hours - (self._hoursTillNow - 40)))
+                midpoint = datetimeToDateString(midpoint)
+                self._endTime = midpoint
+
+                self._hoursTillNow = 40
+                self._subShift = [self._job, self._rawStartTime, midpoint, self._rawEndTime, self._rawTips, self._tips]
         elif self._baseRate != None and self._hoursTillNow < 40 and rate != self._baseRate:
             if rate == self._baseRate * 1.5:
                 self._error = "Overtime mismatch. Overtime awarded under 40 hours.\n"
@@ -171,3 +182,14 @@ class shift():
         if self._job in config.managerJobs:
             return True
         return False
+
+# converts datetime object to string "mm/dd/yyyy hh:mm?M"
+def datetimeToDateString(point):
+    dateString = point._repr_base[5:-3].replace("-","/")
+    dateString = dateString[:2] + dateString[2:5].replace("/" + str(point.day), "/" + str(point.day)+ "/" + str(point.year)) + dateString[5:]
+    if point.hour > 12:
+        dateString = dateString[:11] + dateString[11:13].replace(str(point.hour), str(point.hour % 12).zfill(2)) + dateString[13:]
+        dateString += "PM"
+    else:
+        dateString += "AM"
+    return dateString

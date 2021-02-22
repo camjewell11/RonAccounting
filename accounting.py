@@ -7,7 +7,7 @@ debug = False
 if len(sys.argv) > 1 and sys.argv[1] == "-nopick":
     debug = True
 
-dataFile = "Data/payroll.xlsx"
+dataFile = "Data/payroll2.xlsx"
 outputLocation = "Data/consolidatedPayroll.xlsx"
 
 # prompts user for file in explorer, defaults to dataFile
@@ -378,12 +378,14 @@ def generateOutput(outputFileName, workers, FOH, BOH, reception, managers, mTips
         shiftWorksheet.set_column(6,9,None,money)
         shiftWorksheet.set_column(9,9,60)
         shiftWorksheet.freeze_panes(1,0)
+        shiftWorksheet.freeze_panes(0,1)
 
         tipsWorksheet.set_column(0,2,20)
         tipsWorksheet.set_column(5,5,15)
         tipsWorksheet.set_column(3,4,15,money)
         tipsWorksheet.set_column(6,8,15,money)
         tipsWorksheet.freeze_panes(1,0)
+        tipsWorksheet.freeze_panes(0,1)
 
 # main
 def run():

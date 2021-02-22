@@ -1,4 +1,4 @@
-import Shift
+import copy, pandas, Shift
 
 class worker():
     def __init__(self, data, startRow, endRow):
@@ -6,25 +6,10 @@ class worker():
         self._name = data["name"][startRow]
         self._workShifts = [[], [], [], [], [], [], []]
 
-        data = self.trimData(data, startRow, endRow)
+        data = trimData(data, startRow, endRow)
+        data = preProcessing(data)
         self.getWorkDays(data)
         self.postProcessing()
-
-    # removes all data without Shift tag in data
-    def trimData(self, data, start, end):
-        trimmedData = {}
-        workingTitle = ""
-        for entry in data:
-            trimmedData[entry] = []
-            for x in range(start, end):
-                if type(data["job"][x]) is str:
-                    workingTitle = data["job"][x]
-                elif data["working"][x] == "Shift":
-                    if entry == "job":
-                        trimmedData[entry].append(workingTitle)
-                    else:
-                        trimmedData[entry].append(data[entry][x])
-        return trimmedData
 
     # creates Shift objects with relevant data
     def getWorkDays(self, data):
@@ -69,3 +54,32 @@ class worker():
         self._wage = weeklyPay
     def setPostTipWage(self, postTipWage):
         self._pay = postTipWage
+
+# removes all data without Shift tag in data
+def trimData(data, start, end):
+    trimmedData = {}
+    workingTitle = ""
+    for entry in data:
+        trimmedData[entry] = []
+        for x in range(start, end):
+            if type(data["job"][x]) is str:
+                workingTitle = data["job"][x]
+            elif data["working"][x] == "Shift":
+                if entry == "job":
+                    trimmedData[entry].append(workingTitle)
+                else:
+                    trimmedData[entry].append(data[entry][x])
+    return trimmedData
+
+# reorders shifts chronologically before processing
+def preProcessing(data):
+    startTimes = []
+    for attribute in data["start"]:
+        startTimes.append(pandas.to_datetime(attribute))
+
+    indices = [*range(len(startTimes))]
+    indices = [x for _,x in sorted(zip(startTimes, indices))]
+    for key,list in data.items():
+        data[key] = [x for _,x in sorted(zip(startTimes, list))]
+
+    return data

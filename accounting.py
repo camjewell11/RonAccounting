@@ -1,4 +1,4 @@
-import copy, os, pandas, sys, xlsxwriter
+import copy, numpy, os, pandas, sys, xlsxwriter
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
 import Worker
@@ -356,8 +356,8 @@ def getDetailsFromWorkers(workers, FOH, BOH, reception, managers, frontOfHousePa
 def generateOutput(outputFileName, workers, FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers):
     # set columns for each sheet
     frontOfHousePay = [["Worker","Hours","Base Rate","Pay","Individual Tips","Adjusted Tips","Total"]]
-    backOfHousePay = [["Worker","Hours","Base Rate","Total"]]
-    receptionPay = [["Worker","Hours","Base Rate","Tips","Total"]]
+    backOfHousePay = [["Worker","Hours","Base Rate","Pay"]]
+    receptionPay = [["Worker","Hours","Base Rate","Tips","Pay"]]
     managersPay = [["Worker","Hours","Tips"]]
     shifts = [["Worker","Raw Start Time","Raw End Time","Adj. Start Time","Adj. End Time","Hours","Paid Rate","Tips","Pay","Comments"]]
     tipsData = [["Worker","Start Time","End Time","Raw Tips","Adjusted Tips","# Coworkers","Coworkers' Tips","Tips Average","Paid Tips"]]
@@ -399,24 +399,63 @@ def generateOutput(outputFileName, workers, FOH, BOH, reception, managers, mTips
 
     # write worksheets
     with xlsxwriter.Workbook(outputFileName) as workbook:
+        summaryWorksheet = workbook.add_worksheet("Summary")
+
         FOHworksheet = workbook.add_worksheet("FOH")
         for rowNum,row in enumerate(frontOfHousePay):
             FOHworksheet.write_row(rowNum, 0, row)
+
         BOHworksheet = workbook.add_worksheet("BOH")
         for rowNum,row in enumerate(backOfHousePay):
             BOHworksheet.write_row(rowNum, 0, row)
+
         RECworksheet = workbook.add_worksheet("Reception")
         for rowNum,row in enumerate(receptionPay):
             RECworksheet.write_row(rowNum, 0, row)
+
         MANworksheet = workbook.add_worksheet("Managers")
         for rowNum,row in enumerate(managersPay):
             MANworksheet.write_row(rowNum, 0, row)
+
         shiftWorksheet = workbook.add_worksheet("Shifts")
         for rowNum,row in enumerate(shifts):
             shiftWorksheet.write_row(rowNum, 0, row)
+
         tipsWorksheet = workbook.add_worksheet("Tips")
         for rowNum,row in enumerate(tipsData):
             tipsWorksheet.write_row(rowNum, 0, row)
+
+        summaryData = frontOfHousePay
+        summaryData.append([])
+        summaryData[0] = ["Worker","Hours","Base Rate","Pay","Ind. Tips","Adj. Tips","Total"]
+        for entry in backOfHousePay[1:]:
+            summaryData.append([entry[0],entry[1],entry[2],entry[3],"-","-",entry[3]])
+        summaryData.append([])
+        for entry in receptionPay[1:]:
+            summaryData.append([entry[0],entry[1],entry[2],entry[4],entry[3],"-",entry[4]])
+        summaryData.append([])
+        for entry in managersPay[1:]:
+            summaryData.append([entry[0],entry[1],"-","-",entry[2],"-","-"])
+        summaryData.append([])
+
+        payTotal      = 0
+        indTipsTotal  = 0
+        adjTipsTotal  = 0
+        totalTotal    = 0
+        for entry in summaryData[1:]:
+            if entry != []:
+                if entry[3] != "-":
+                    payTotal += entry[3]
+                if entry[4] != "-":
+                    indTipsTotal += entry[4]
+                if entry[5] != "-":
+                    adjTipsTotal += entry[5]
+                if entry[6] != "-":
+                    totalTotal += entry[6]
+        summaryData.append(["Totals","","",payTotal,indTipsTotal,adjTipsTotal,totalTotal])
+
+        for rowNum,row in enumerate(summaryData):
+            summaryWorksheet.write_row(rowNum, 0, row)
 
         # set column widths and formats
         money = workbook.add_format({'num_format':'$#,##0.00'})
@@ -442,6 +481,10 @@ def generateOutput(outputFileName, workers, FOH, BOH, reception, managers, mTips
         tipsWorksheet.set_column(3,4,15,money)
         tipsWorksheet.set_column(6,8,15,money)
         tipsWorksheet.freeze_panes(1,1)
+
+        summaryWorksheet.set_column(0,0,20)
+        summaryWorksheet.set_column(2,6,10,money)
+        summaryWorksheet.freeze_panes(1,1)
 
 # main
 def run():

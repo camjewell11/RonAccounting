@@ -1,14 +1,51 @@
-import copy, pandas, sys, xlsxwriter
+import copy, os, pandas, sys, xlsxwriter
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
 import Worker
 
-debug = False
-if len(sys.argv) > 1 and sys.argv[1] == "-nopick":
-    debug = True
-
+debugInput = False
+debugOutput = False
 dataFile = "Data/payroll2.xlsx"
-outputLocation = "Data/consolidatedPayroll.xlsx"
+outputLocation = "Data/"
+
+# parses flags for input/output/nopick flags
+def parseCommandLineOptions():
+    global debugInput, debugOutput, dataFile, outputLocation
+    if len(sys.argv) > 1 and sys.argv[1] == "-nopick":
+        debugInput = True
+        debugOutput = True
+    # specify input file
+    if "-i" in sys.argv:
+        dataFile = sys.argv[sys.argv.index("-i")+1]
+        debugInput = True
+        if not os.path.exists(dataFile):
+            print ("Could not located specified input file: " + dataFile)
+            return 0
+    # specify output directory
+    if "-o" in sys.argv:
+        outputLocation = sys.argv[sys.argv.index("-o")+1]
+        debugOutput = True
+        if not os.path.exists(outputLocation):
+            print ("Could not located output location: " + outputLocation)
+            return 0
+    # display available commands
+    if "-h" in sys.argv:
+        print ("Available options:")
+        print ("   -nopick \t\tUse the default input/output")
+        print ("   Example: python accounting.py -nopick")
+        print ()
+        print ("   -i <input file> \tSpecify input file")
+        print ("   Example: python accounting.py -i payroll.xlsx")
+        print ()
+        print ("   -o <output location> Specify output directory")
+        print ("   Example: python accounting.py -o Data/Feb12/")
+        print ()
+        print ("   -h \t\t\tDisplay all command line options")
+        print ("   Example: python accounting.py -h")
+        print ()
+        return 0
+
+    return 1
 
 # prompts user for file in explorer, defaults to dataFile
 def getInputFile():
@@ -16,7 +53,7 @@ def getInputFile():
     root.withdraw()
 
     fileName = dataFile
-    if not debug:
+    if not debugInput:
         fileName = askopenfilename(title="Select payroll file(s)")
         if fileName == dataFile:
             print ("Using default datafile Data/payroll.xlsx")
@@ -24,13 +61,14 @@ def getInputFile():
 
 # prompts user for output location, defaults to outputLocation
 def getOutputLocation():
-    fileName = outputLocation
-    if not debug:
+    root = Tk()
+    root.withdraw()
+
+    fileName = outputLocation + "consolidatedPayroll.xlsx"
+    if not debugOutput:
         fileName = askdirectory(title="Select output location")
-        if fileName == outputLocation:
-            print ("Using default output directory Data/")
-        else:
-            fileName += "/consolidatedPayroll.xlsx"
+        if fileName == outputLocation + "consolidatedPayroll.xlsx":
+            print ("Using default output directory " + outputLocation)
     return fileName
 
 # pulls raw data from excel file
@@ -149,13 +187,11 @@ def calculateTotalTipsPerShift(workers):
         # sum tips per shift per day
         for day in worker._workShifts:
             for shift in day:
-                if shift.isMorningShift():
-                    morningTipsByDay[shift._weekDay].append(shift._tips)
-                elif shift.isAfternoonShift():
-                    afternoonTipsByDay[shift._weekDay].append(shift._tips)
-
-                # morningTipsByDay[shift._weekDay] = list(filter(lambda num: num != 0, morningTipsByDay[shift._weekDay]))
-                # afternoonTipsByDay[shift._weekDay] = list(filter(lambda num: num != 0, afternoonTipsByDay[shift._weekDay]))
+                if shift._tips != 0:
+                    if shift.isMorningShift():
+                        morningTipsByDay[shift._weekDay].append(shift._tips)
+                    elif shift.isAfternoonShift():
+                        afternoonTipsByDay[shift._weekDay].append(shift._tips)
 
     return morningTipsByDay, afternoonTipsByDay
 
@@ -169,9 +205,9 @@ def calculateWorkersPerShift(workers):
         # count number of workers per shift per day
         for day in range(len(worker._workShifts)):
             for shift in worker._workShifts[day]:
-                if shift.isMorningShift() and not shift.jobIsIgnored():
+                if shift.isMorningShift() and not shift.jobIsIgnored() and not shift._overtime:
                     mShifts[day] +=1
-                elif shift.isAfternoonShift() and not shift.jobIsIgnored():
+                elif shift.isAfternoonShift() and not shift.jobIsIgnored() and not shift._overtime:
                     aShifts[day] +=1
 
         # workers can have more than one shift object per object (overtime, clock-int/out,
@@ -193,9 +229,9 @@ def calculatePayroll(workers, morningTips, afternoonTips, morningWorkers, aftern
         # only count tips when working and allowed tips
         for day in range(len(worker._workShifts)):
             for shift in worker._workShifts[day]:
-                if shift.isMorningShift() and not shift.jobIsIgnored():
+                if shift.isMorningShift() and not shift.jobIsIgnored() and not shift._overtime:
                     totalTips += sum(morningTips[day]) / morningWorkers[day]
-                elif shift.isAfternoonShift() and not shift.jobIsIgnored():
+                elif shift.isAfternoonShift() and not shift.jobIsIgnored() and not shift._overtime:
                     totalTips += sum(afternoonTips[day]) / afternoonWorkers[day]
         worker._adjustedTips = totalTips
         worker.setPostTipWage(totalPay + totalTips)
@@ -262,10 +298,7 @@ def sortWorkersByLocation(workers):
     return FOH, BOH, reception, managers
 
 # parses every worker and their individual shifts for information to be outputted
-def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOfHousePay, receptionPay, managersPay, shifts):
-    totalTips = 0
-    totalPay = 0
-
+def getDetailsFromWorkers(workers, FOH, BOH, reception, managers, frontOfHousePay, backOfHousePay, receptionPay, managersPay, shifts):
     for worker in FOH:
         details = [worker._name, worker._weeklyHours, worker._baseRate, worker._wage, worker._tips, worker._adjustedTips, worker._pay]
         frontOfHousePay.append(details)
@@ -274,9 +307,7 @@ def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOf
                 shiftDetails = [shift._name, shift._rawStartTime,shift._rawEndTime,  shift._startTime, shift._endTime,
                                 shift._hours, shift._rate, shift._tips, "-", shift._error]
                 shifts.append(shiftDetails)
-                totalTips += shift._tips
         shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-",worker._adjustedTips,worker._pay,""])
-        totalPay += worker._pay
 
     for worker in BOH:
         details = [worker._name, worker._weeklyHours, worker._baseRate, worker._pay]
@@ -287,7 +318,6 @@ def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOf
                                 shift._hours, shift._rate, "-", "-", shift._error]
                 shifts.append(shiftDetails)
         shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-","-",worker._pay,""])
-        totalPay += worker._pay
 
     for worker in reception:
         details = [worker._name, worker._weeklyHours, worker._baseRate, worker._tips, worker._pay]
@@ -297,9 +327,7 @@ def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOf
                 shiftDetails = [shift._name, shift._rawStartTime, shift._rawEndTime, shift._startTime, shift._endTime,
                                 shift._hours, shift._rate, "-", "-", shift._error]
                 shifts.append(shiftDetails)
-                totalTips += shift._tips
         shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-",worker._tips,worker._pay,""])
-        totalPay += worker._pay
 
     for worker in managers:
         details = [worker._name, worker._weeklyHours, worker._tips]
@@ -309,8 +337,18 @@ def getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOf
                 shiftDetails = [shift._name, shift._rawStartTime, shift._rawEndTime, shift._startTime, shift._endTime,
                                 shift._hours, shift._rate, "-", "-", shift._error]
                 shifts.append(shiftDetails)
-                totalTips += shift._tips
         shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-","-","",""])
+
+    totalTips = 0
+    totalPay = 0
+    totalHours = 0
+    for worker in workers:
+        for day in worker._workShifts:
+            for shift in day:
+                if shift._job not in ["Manager", "Comp"]:
+                    totalPay += shift._rate * shift._hours
+                    totalHours += shift._hours
+        totalTips += worker._tips
 
     return frontOfHousePay, backOfHousePay, receptionPay, managersPay, shifts, totalTips, totalPay
 
@@ -324,7 +362,7 @@ def generateOutput(outputFileName, workers, FOH, BOH, reception, managers, mTips
     shifts = [["Worker","Raw Start Time","Raw End Time","Adj. Start Time","Adj. End Time","Hours","Paid Rate","Tips","Pay","Comments"]]
     tipsData = [["Worker","Start Time","End Time","Raw Tips","Adjusted Tips","# Coworkers","Coworkers' Tips","Tips Average","Paid Tips"]]
 
-    frontOfHousePay,backOfHousePay,receptionPay,managersPay,shifts,tips,pay = getDetailsFromWorkers(FOH, BOH, reception, managers, frontOfHousePay, backOfHousePay, receptionPay, managersPay, shifts)
+    frontOfHousePay,backOfHousePay,receptionPay,managersPay,shifts,tips,pay = getDetailsFromWorkers(workers, FOH, BOH, reception, managers, frontOfHousePay, backOfHousePay, receptionPay, managersPay, shifts)
     shifts.append(["Grand Totals","","","","","","",tips,"",pay,""])
 
     for worker in workers:
@@ -332,7 +370,7 @@ def generateOutput(outputFileName, workers, FOH, BOH, reception, managers, mTips
         noPay = False
         for day in range(len(worker._workShifts)):
             for shift in worker._workShifts[day]:
-                if not shift.jobIsIgnored():
+                if not shift.jobIsIgnored() and not shift._overtime:
                     dayTips = []
                     numCoworkers = 0
                     if shift._morningShift:
@@ -407,39 +445,43 @@ def generateOutput(outputFileName, workers, FOH, BOH, reception, managers, mTips
 
 # main
 def run():
-    # get input filename, defaults to dataFile
-    fileName = getInputFile()
-    # get data from file
-    rawData = getDataFromFile(fileName)
-    # pull out useful data
-    trimmedData = trimFileData(rawData)
-    # consolidate into single line entries
-    usefulData = consolidateData(trimmedData)
+    # reads command line arguments if there are any
+    proceed = parseCommandLineOptions()
 
-    # create worker objects with their own shift objects
-    workers = createWorkers(usefulData)
-    # recursive check of tip calculations
-    workers = postProcessing(workers)
-    # sets workers' wage based on hours and rate per shift
-    calculateTotals(workers)
+    if proceed:
+        # get input filename, defaults to dataFile
+        fileName = getInputFile()
+        # get data from file
+        rawData = getDataFromFile(fileName)
+        # pull out useful data
+        trimmedData = trimFileData(rawData)
+        # consolidate into single line entries
+        usefulData = consolidateData(trimmedData)
 
-    # calculate total tips per shift; returns morning list and afternoon value for each day in list
-    mTips,aTips = calculateTotalTipsPerShift(workers)
-    # returns lists of workers by location (FOH is only one used)
-    FOH,_,_,_ = sortWorkersByLocation(workers)
-    # splits workers into list by shift for use in tips averaging
-    mWorkers, aWorkers = calculateWorkersPerShift(FOH)
-    # finalizes all total pay (tips and wage)
-    workers = calculatePayroll(workers, mTips, aTips, mWorkers, aWorkers)
-    # returns lists of workers by location for use in output
-    FOH,BOH,reception,managers = sortWorkersByLocation(workers)
+        # create worker objects with their own shift objects
+        workers = createWorkers(usefulData)
+        # recursive check of tip calculations
+        workers = postProcessing(workers)
+        # sets workers' wage based on hours and rate per shift
+        calculateTotals(workers)
 
-    # get output location
-    fileName = getOutputLocation()
-    # generate output
-    generateOutput(fileName, workers, FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers)
+        # calculate total tips per shift; returns morning list and afternoon value for each day in list
+        mTips,aTips = calculateTotalTipsPerShift(workers)
+        # returns lists of workers by location (FOH is only one used)
+        FOH,_,_,_ = sortWorkersByLocation(workers)
+        # splits workers into list by shift for use in tips averaging
+        mWorkers, aWorkers = calculateWorkersPerShift(FOH)
+        # finalizes all total pay (tips and wage)
+        workers = calculatePayroll(workers, mTips, aTips, mWorkers, aWorkers)
+        # returns lists of workers by location for use in output
+        FOH,BOH,reception,managers = sortWorkersByLocation(workers)
 
-    print ("Finished generating output.")
+        # get output location
+        fileName = getOutputLocation()
+        # generate output
+        generateOutput(fileName, workers, FOH, BOH, reception, managers, mTips, aTips, mWorkers, aWorkers)
+
+        print ("Finished generating output.")
 
 if __name__=="__main__":
     run()

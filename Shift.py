@@ -14,6 +14,7 @@ class shift():
         self._hoursTillNow = hoursTillNow
         self._weekDay = 0
         self._double = False
+        self._overtime = False
 
         self._tips = data["tips"][shiftNum]
         self._rawTips = self._tips
@@ -40,6 +41,7 @@ class shift():
         self._baseRate = baseRate
         self._weekDay = 0
         self._double = False
+        self._overtime = False
 
         self._rawTips = 0
         self._tips = tips
@@ -100,6 +102,10 @@ class shift():
             self._subShift = [self._job, self._rawStartTime, midpoint, self._rawEndTime, self._rawTips, self._tips]
             self._double = True
 
+            # rare case where double started after noon
+            # set first portion of double to morning shift regardless of start time
+            self._morningShift = True
+
             # split shift in two; designated midpoint for subshift to be created
             midpoint = pandas.to_datetime(midpoint)
             secondHalf = (endTime-midpoint) / datetime.timedelta(hours=1)
@@ -130,9 +136,9 @@ class shift():
                 newHours = self._hoursTillNow + self._hours
                 if newHours > 40:
                     rate = self._baseRate * 1.5
-                # self._subShift = [self._job, self._rawStartTime, self._rawStartTime, self._rawEndTime, 0]
         elif self._hoursTillNow > 40 and rate == self._baseRate * 1.5:
             self._error = "Overtime."
+            self._overtime = True
         else:
             self._baseRate = rate
         return rate
@@ -153,7 +159,8 @@ class shift():
                 elif self.isAfternoonShift and shift["shift"] == "PM":
                     return True
         if pandas.to_datetime(self._rawStartTime).hour == 4 and pandas.to_datetime(self._rawEndTime).hour == 4:
-            return True
+            if self._job != "Manager":
+                return True
         return False
 
     # if shift doesn't earn tips, store tips in another variable for output

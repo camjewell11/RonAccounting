@@ -152,6 +152,8 @@ class shift():
                     return True
                 elif self.isAfternoonShift and shift["shift"] == "PM":
                     return True
+        if pandas.to_datetime(self._rawStartTime).hour == 4 and pandas.to_datetime(self._rawEndTime).hour == 4:
+            return True
         return False
 
     # if shift doesn't earn tips, store tips in another variable for output

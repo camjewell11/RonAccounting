@@ -5,6 +5,12 @@ class worker():
         self._weeklyHours = 0
         self._name = data["name"][startRow]
         self._workShifts = [[], [], [], [], [], [], []]
+        self._FOHwage = 0
+        self._BOHwage = 0
+        self._RECwage = 0
+        self._FOHhours = 0
+        self._BOHhours = 0
+        self._REChours = 0
 
         data = trimData(data, startRow, endRow)
         data = workerPreProcessing(data)
@@ -53,6 +59,14 @@ class worker():
         self._wage = weeklyPay
     def setPostTipWage(self, postTipWage): # pay with adjusted tips
         self._pay = postTipWage
+
+    def haveMultipleLocations(self):
+        days = sum(self._workShifts, [])
+        shifts = []
+        for shift in days:
+            shifts.append(shift.getLocation())
+
+        return True if len(set(shifts)) != 1 else False
 
 # removes all data without Shift tag in data
 def trimData(data, start, end):

@@ -179,6 +179,15 @@ class shift():
         return True if self._job in config.receptionJobs else False
     def isManager(self):
         return True if self._job in config.managerJobs else False
+    def getLocation(self):
+        if self.isFOH():
+            return "FOH"
+        elif self.isBOH():
+            return "BOH"
+        elif self.isReception():
+            return "Reception"
+        elif self.isManager():
+            return "Manager"
 
 # converts datetime object to string "mm/dd/yyyy hh:mm?M"
 def datetimeToDateString(point):

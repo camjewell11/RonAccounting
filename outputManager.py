@@ -56,7 +56,7 @@ def generateOutput(outputFileName, workers, FOH, BOH, reception, managers, mTips
         for rowNum,row in enumerate(tipsData):
             tipsWorksheet.write_row(rowNum, 0, row)
 
-        summaryData = generateSummaryData(frontOfHousePay, backOfHousePay, receptionPay, managersPay)
+        summaryData = generateSummaryData(workers, frontOfHousePay, backOfHousePay, receptionPay, managersPay)
         for rowNum,row in enumerate(summaryData):
             summaryWorksheet.write_row(rowNum, 0, row)
 
@@ -93,7 +93,7 @@ def getTipsData(workers, tipsData, mTips, aTips, mWorkers, aWorkers):
     return tipsData
 
 # parses other sheets for data to populate summary page
-def generateSummaryData(frontOfHousePay, backOfHousePay, receptionPay, managersPay):
+def generateSummaryData(workers, frontOfHousePay, backOfHousePay, receptionPay, managersPay):
     summaryData = frontOfHousePay
     summaryData.append([])
     summaryData[0] = ["Worker","Hours","Base Rate","Pay","Ind. Tips","Adj. Tips","Total"]
@@ -101,10 +101,10 @@ def generateSummaryData(frontOfHousePay, backOfHousePay, receptionPay, managersP
         summaryData.append([entry[0],entry[1],entry[2],entry[3],"-","-",entry[3]])
     summaryData.append([])
     for entry in receptionPay[1:]:
-        summaryData.append([entry[0],entry[1],entry[2],entry[4],entry[3],"-",entry[4]])
+        summaryData.append([entry[0],entry[1],entry[2],entry[4],entry[3],0,entry[4]])
     summaryData.append([])
     for entry in managersPay[1:]:
-        summaryData.append([entry[0],entry[1],"-","-",entry[2],"-","-"])
+        summaryData.append([entry[0],entry[1],"-","-",entry[2],0,"-"])
     summaryData.append([])
 
     payTotal      = 0
@@ -157,7 +157,7 @@ def setSheetFormatting(workbook, FOHworksheet, BOHworksheet, RECworksheet, MANwo
 # parses every worker and their individual shifts for information to be outputted
 def getDetailsFromWorkers(workers, FOH, BOH, reception, managers, frontOfHousePay, backOfHousePay, receptionPay, managersPay, shifts):
     for worker in FOH:
-        details = [worker._name, worker._weeklyHours, worker._baseRate, worker._wage, worker._tips, worker._adjustedTips, worker._pay]
+        details = [worker._name, worker._FOHhours, worker._baseRate, worker._FOHwage, worker._tips, worker._adjustedTips, worker._pay]
         frontOfHousePay.append(details)
         for day in worker._workShifts:
             for shift in day:
@@ -167,7 +167,7 @@ def getDetailsFromWorkers(workers, FOH, BOH, reception, managers, frontOfHousePa
         shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-",worker._adjustedTips,worker._pay,""])
 
     for worker in BOH:
-        details = [worker._name, worker._weeklyHours, worker._baseRate, worker._pay]
+        details = [worker._name, worker._BOHhours, worker._baseRate, worker._BOHwage]
         backOfHousePay.append(details)
         for day in worker._workShifts:
             for shift in day:
@@ -177,7 +177,7 @@ def getDetailsFromWorkers(workers, FOH, BOH, reception, managers, frontOfHousePa
         shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-","-",worker._pay,""])
 
     for worker in reception:
-        details = [worker._name, worker._weeklyHours, worker._baseRate, worker._tips, worker._pay]
+        details = [worker._name, worker._REChours, worker._baseRate, worker._tips, worker._RECwage]
         receptionPay.append(details)
         for day in worker._workShifts:
             for shift in day:

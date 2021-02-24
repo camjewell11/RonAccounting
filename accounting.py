@@ -21,6 +21,23 @@ def createWorkers(data):
                 startRow = x
     return workers
 
+# split worker pay totals by location
+def workerLocationPostProcessing(workers):
+    for worker in workers:
+        # if worker.haveMultipleLocations():
+        for day in worker._workShifts:
+            for shift in day:
+                if shift.isFOH():
+                    worker._FOHwage += shift._hours*shift._rate
+                    worker._FOHhours += shift._hours
+                elif shift.isBOH():
+                    worker._BOHwage += shift._hours*shift._rate
+                    worker._BOHhours += shift._hours
+                elif shift.isReception():
+                    worker._RECwage += shift._hours*shift._rate
+                    worker._REChours += shift._hours
+    return workers
+
 # if clock-in/out changes are made that affect rate due to overtime,
 # recreate shifts and pay calculations for corrected shifts;
 # adjust tips based on double shifts
@@ -123,9 +140,9 @@ def calculateWorkersPerShift(workers):
         for day in range(len(worker._workShifts)):
             for shift in worker._workShifts[day]:
                 if shift.isMorningShift() and not shift.jobIsIgnored() and not shift._overtime:
-                    mShifts[day] +=1
+                    mShifts[day] += 1
                 elif shift.isAfternoonShift() and not shift.jobIsIgnored() and not shift._overtime:
-                    aShifts[day] +=1
+                    aShifts[day] += 1
 
         # workers can have more than one shift object per object (overtime, clock-int/out,
         # breaks), but only increment once per shift counter
@@ -203,13 +220,13 @@ def main():
 
     if proceed:
         # get input filename, defaults to dataFile
-        fileName = inputManager.getInputFile(dataFile)
+        fileName    = inputManager.getInputFile(dataFile)
         # get data from file
-        rawData = inputManager.getDataFromFile(fileName)
+        rawData     = inputManager.getDataFromFile(fileName)
         # pull out useful data
         trimmedData = inputManager.trimFileData(rawData)
         # consolidate into single line entries
-        usefulData = inputManager.consolidateData(trimmedData)
+        usefulData  = inputManager.consolidateData(trimmedData)
 
         # create worker objects with their own shift objects
         workers = createWorkers(usefulData)
@@ -217,6 +234,8 @@ def main():
         workers = tipsPostProcessing(workers)
         # sets workers' wage based on hours and rate per shift
         calculateTotals(workers)
+        # check pay totals for workers who worked multiple locations
+        workers = workerLocationPostProcessing(workers)
 
         # calculate total tips per shift; returns morning list and afternoon value for each day in list
         mTips,aTips = calculateTotalTipsPerShift(workers)

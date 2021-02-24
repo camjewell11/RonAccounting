@@ -9,9 +9,10 @@ def getOutputLocation(outputLocation):
 
     fileName = outputLocation + "consolidatedPayroll.xlsx"
     if not accounting.debugOutput:
-        fileName = askdirectory(title="Select output location")
-        if fileName == outputLocation + "consolidatedPayroll.xlsx":
-            print ("Using default output directory " + outputLocation)
+        chosenLocation = askdirectory(title="Select output location")
+        if chosenLocation != "":
+            return chosenLocation + "/consolidatedPayroll.xlsx"
+    print ("Using default output directory " + outputLocation + ".")
     return fileName
 
 # writes corrected output to file

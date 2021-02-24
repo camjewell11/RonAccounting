@@ -47,9 +47,10 @@ def getInputFile(dataFile):
 
     fileName = dataFile
     if not accounting.debugInput:
-        fileName = askopenfilename(title="Select payroll file(s)")
-        if fileName == dataFile:
-            print ("Using default datafile Data/payroll.xlsx")
+        chosenFile = askopenfilename(title="Select payroll file(s)")
+        if chosenFile != "":
+            return chosenFile
+    print ("Using default datafile " + dataFile + ".")
     return fileName
 
 # pulls raw data from excel file

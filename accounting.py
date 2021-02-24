@@ -24,7 +24,6 @@ def createWorkers(data):
 # split worker pay totals by location
 def workerLocationPostProcessing(workers):
     for worker in workers:
-        # if worker.haveMultipleLocations():
         for day in worker._workShifts:
             for shift in day:
                 if shift.isFOH():
@@ -234,7 +233,7 @@ def main():
         workers = tipsPostProcessing(workers)
         # sets workers' wage based on hours and rate per shift
         calculateTotals(workers)
-        # check pay totals for workers who worked multiple locations
+        # check pay/hours totals for workers who worked multiple locations
         workers = workerLocationPostProcessing(workers)
 
         # calculate total tips per shift; returns morning list and afternoon value for each day in list

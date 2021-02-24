@@ -123,9 +123,9 @@ def calculateWorkersPerShift(workers):
         for day in range(len(worker._workShifts)):
             for shift in worker._workShifts[day]:
                 if shift.isMorningShift() and not shift.jobIsIgnored() and not shift._overtime:
-                    mShifts[day] += 1
+                    mShifts[day] +=1
                 elif shift.isAfternoonShift() and not shift.jobIsIgnored() and not shift._overtime:
-                    aShifts[day] += 1
+                    aShifts[day] +=1
 
         # workers can have more than one shift object per object (overtime, clock-int/out,
         # breaks), but only increment once per shift counter

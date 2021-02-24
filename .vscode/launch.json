@@ -5,18 +5,46 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Calculate Accounting Debug",
+            "name": "Debug",
             "type": "python",
             "request": "launch",
             "program": "accounting.py",
             "console": "integratedTerminal",
             "args": ["-nopick"]
         },{
-            "name": "Calculate Accounting Pick",
+            "name": "Pick",
             "type": "python",
             "request": "launch",
             "program": "accounting.py",
             "console": "integratedTerminal"
+        },{
+            "name": "Command Line Help",
+            "type": "python",
+            "request": "launch",
+            "program": "accounting.py",
+            "console": "integratedTerminal",
+            "args": ["-h"]
+        },{
+            "name": "Command Line Input",
+            "type": "python",
+            "request": "launch",
+            "program": "accounting.py",
+            "console": "integratedTerminal",
+            "args": ["-i", "Data/payroll.xlsx"]
+        },{
+            "name": "Command Line Output",
+            "type": "python",
+            "request": "launch",
+            "program": "accounting.py",
+            "console": "integratedTerminal",
+            "args": ["-o", "Data/"]
+        },{
+            "name": "Command Line Input/Output",
+            "type": "python",
+            "request": "launch",
+            "program": "accounting.py",
+            "console": "integratedTerminal",
+            "args": ["-i", "Data/payroll.xlsx", "-o", "Data/"]
         }
     ]
 }

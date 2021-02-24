@@ -2,22 +2,22 @@ import config, datetime, pandas
 
 class shift():
     def __init__(self):
-        pass
+        self._subShift = []
+        self._error = ""
+        self._weekDay = 0
+        self._double = False
+        self._overtime = False
+        self._unpaidTips = 0
 
     # default "constructor" for shift
     def construct(self, name, data, shiftNum, baseRate=None, hoursTillNow=0):
         self._name = name
-        self._subShift = []
-        self._error = ""
         self._job = data["job"][shiftNum]
         self._baseRate = baseRate
         self._hoursTillNow = hoursTillNow
-        self._weekDay = 0
-        self._double = False
 
         self._tips = data["tips"][shiftNum]
         self._rawTips = self._tips
-        self._unpaidTips = 0
 
         self._rawStartTime = data["start"][shiftNum]
         self._rawEndTime = data["end"][shiftNum]
@@ -28,22 +28,17 @@ class shift():
         if pandas.isnull(self._tips):
             self._tips = 0
             self._rawTips = 0
-        self.postProcessing()
+        self.shiftPostProcessing()
 
     # "constructor" used when splitting shifts
     def subShift(self, name, job, start, midPoint, end, rate, baseRate, tips, hoursTillNow):
         self._name = name
-        self._subShift = []
-        self._error = ""
         self._job = job
         self._hoursTillNow = hoursTillNow
         self._baseRate = baseRate
-        self._weekDay = 0
-        self._double = False
 
         self._rawTips = 0
         self._tips = tips
-        self._unpaidTips = 0
 
         self._rawStartTime = start
         self._rawEndTime = end
@@ -53,8 +48,9 @@ class shift():
 
         if pandas.isnull(self._tips):
             self._tips = 0
-        self.postProcessing()
+        self.shiftPostProcessing()
 
+    # reads raw input time and adjusts for clock errors and subshifts
     def getTime(self, startTime, endTime):
         start = startTime
         # convert clock-in error to 9AM
@@ -100,6 +96,10 @@ class shift():
             self._subShift = [self._job, self._rawStartTime, midpoint, self._rawEndTime, self._rawTips, self._tips]
             self._double = True
 
+            # rare case where double started after noon
+            # set first portion of double to morning shift regardless of start time
+            self._morningShift = True
+
             # split shift in two; designated midpoint for subshift to be created
             midpoint = pandas.to_datetime(midpoint)
             secondHalf = (endTime-midpoint) / datetime.timedelta(hours=1)
@@ -111,7 +111,6 @@ class shift():
     def checkRate(self, rate):
         if self._hoursTillNow > 40 and rate != self._baseRate * 1.5:
             self._error = "Overtime mismatch. Not awarded overtime for working 40+ hours.\n"
-
             if self._hoursTillNow - self._hours == 40:
                 self._error = "Adjusted rate to overtime rate."
                 rate = self._baseRate * 1.5
@@ -123,6 +122,7 @@ class shift():
 
                 self._hoursTillNow = 40
                 self._subShift = [self._job, self._rawStartTime, midpoint, self._rawEndTime, self._rawTips, self._tips]
+
         elif self._baseRate != None and self._hoursTillNow < 40 and rate != self._baseRate:
             if rate == self._baseRate * 1.5:
                 self._error = "Overtime mismatch. Overtime awarded under 40 hours.\n"
@@ -130,11 +130,14 @@ class shift():
                 newHours = self._hoursTillNow + self._hours
                 if newHours > 40:
                     rate = self._baseRate * 1.5
-                # self._subShift = [self._job, self._rawStartTime, self._rawStartTime, self._rawEndTime, 0]
+
         elif self._hoursTillNow > 40 and rate == self._baseRate * 1.5:
             self._error = "Overtime."
+            self._overtime = True
+
         else:
             self._baseRate = rate
+
         return rate
 
     # returns true if job title contains keyword in ignoredWorkers list
@@ -148,16 +151,16 @@ class shift():
     def shiftIsIgnored(self):
         for shift in config.ignoredShifts:
             if self._name == shift["worker"] and shift["date"] in self._startTime:
-                if self.isMorningShift and shift["shift"] == "AM":
+                if self.isMorningShift and shift["shift"] == "AM" or self.isAfternoonShift and shift["shift"] == "PM":
                     return True
-                elif self.isAfternoonShift and shift["shift"] == "PM":
-                    return True
+        # ignore shifts that start at 4am and end at 4am
         if pandas.to_datetime(self._rawStartTime).hour == 4 and pandas.to_datetime(self._rawEndTime).hour == 4:
-            return True
+            if self._job != "Manager" and self._tips == 0:
+                return True
         return False
 
     # if shift doesn't earn tips, store tips in another variable for output
-    def postProcessing(self):
+    def shiftPostProcessing(self):
         if self.shiftIsIgnored():
             self._unpaidTips = self._tips
 
@@ -169,21 +172,13 @@ class shift():
 
     # used to determine if awarded tips for shift
     def isFOH(self):
-        if self._job in config.frontOfHouseJobs:
-            return True
-        return False
+        return True if self._job in config.frontOfHouseJobs else False
     def isBOH(self):
-        if self._job in config.backOfHouseJobs:
-            return True
-        return False
+        return True if self._job in config.backOfHouseJobs else False
     def isReception(self):
-        if self._job in config.receptionJobs:
-            return True
-        return False
+        return True if self._job in config.receptionJobs else False
     def isManager(self):
-        if self._job in config.managerJobs:
-            return True
-        return False
+        return True if self._job in config.managerJobs else False
 
 # converts datetime object to string "mm/dd/yyyy hh:mm?M"
 def datetimeToDateString(point):
@@ -194,4 +189,5 @@ def datetimeToDateString(point):
         dateString += "PM"
     else:
         dateString += "AM"
+
     return dateString

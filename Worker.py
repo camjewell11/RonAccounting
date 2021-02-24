@@ -1,4 +1,4 @@
-import copy, pandas, Shift
+import pandas, Shift
 
 class worker():
     def __init__(self, data, startRow, endRow):
@@ -7,29 +7,28 @@ class worker():
         self._workShifts = [[], [], [], [], [], [], []]
 
         data = trimData(data, startRow, endRow)
-        data = preProcessing(data)
+        data = workerPreProcessing(data)
         self.getWorkDays(data)
-        self.postProcessing()
+        self.workerPostProcessing()
 
     # creates Shift objects with relevant data
     def getWorkDays(self, data):
         for x in range(len(data["working"])):
             hoursTillNow = self._weeklyHours
+            newDay = Shift.shift()
             if x == 0:
-                newDay = Shift.shift()
                 newDay.construct(self._name, data, x)
                 self._baseRate = newDay._rate
-                hoursTillNow += newDay._hours
             else:
-                newDay = Shift.shift()
                 newDay.construct(self._name, data, x, self._baseRate, hoursTillNow)
-                hoursTillNow += newDay._hours
+            hoursTillNow += newDay._hours
 
             # add shift to worker if not ignored by config file
             if not newDay.shiftIsIgnored():
                 self._workShifts[newDay._weekDay].append(newDay)
                 self._weeklyHours += newDay._hours
 
+            # if shift split by overtime or double
             if newDay._subShift != []:
                 newShift = Shift.shift()
                 newShift.subShift(self._name, newDay._subShift[0], newDay._subShift[1], newDay._subShift[2], newDay._subShift[3], newDay._rate, newDay._baseRate, 0, newDay._hoursTillNow)
@@ -39,7 +38,7 @@ class worker():
                     self._weeklyHours += newShift._hours
 
     # set unadjusted tips, set unpaid tips
-    def postProcessing(self):
+    def workerPostProcessing(self):
         tips = 0
         unpaidTips = 0
         for day in self._workShifts:
@@ -50,9 +49,9 @@ class worker():
         self._tips = tips
         self._unpaidTips = unpaidTips
 
-    def setPreTipWage(self, weeklyPay):
+    def setPreTipWage(self, weeklyPay): # pay before tips
         self._wage = weeklyPay
-    def setPostTipWage(self, postTipWage):
+    def setPostTipWage(self, postTipWage): # pay with adjusted tips
         self._pay = postTipWage
 
 # removes all data without Shift tag in data
@@ -72,7 +71,7 @@ def trimData(data, start, end):
     return trimmedData
 
 # reorders shifts chronologically before processing
-def preProcessing(data):
+def workerPreProcessing(data):
     startTimes = []
     for attribute in data["start"]:
         startTimes.append(pandas.to_datetime(attribute))

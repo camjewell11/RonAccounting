@@ -78,7 +78,8 @@ def getTipsData(workers, tipsData, mTips, aTips, mWorkers, aWorkers):
                     elif shift._afternoonShift:
                         dayTips = copy.deepcopy(aTips[day])
                         numCoworkers = aWorkers[day]
-                    dayTips.remove(shift._tips)
+                    if shift._tips in dayTips:
+                        dayTips.remove(shift._tips)
                     tipsData.append([shift._name, shift._startTime, shift._endTime, shift._rawTips, shift._tips, numCoworkers-1, sum(dayTips), (shift._tips+sum(dayTips))/numCoworkers])
                     totalRawtips += shift._rawTips
                 elif shift._tips != 0:

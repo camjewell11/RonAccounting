@@ -42,6 +42,7 @@ def parseCommandLineOptions():
 
 # prompts user for file in explorer, defaults to dataFile
 def getInputFile(dataFile):
+    # hides second tk dialogue
     root = Tk()
     root.withdraw()
 
@@ -51,6 +52,7 @@ def getInputFile(dataFile):
         if chosenFile != "":
             return chosenFile
     print ("Using default datafile " + dataFile + ".")
+
     return fileName
 
 # pulls raw data from excel file

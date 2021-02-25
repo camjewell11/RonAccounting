@@ -59,6 +59,7 @@ class shift():
             self._error = "Didn't clock out previous shift (4:00AM).\n"
         self._startTime = startTime
         startTime = pandas.to_datetime(startTime)
+
         if "4:00AM" in endTime:
             # convert clock-out error to 3PM (morning shift)
             if startTime.hour < 12:
@@ -109,8 +110,10 @@ class shift():
 
     # ensures correct rate is being paid when clock-in/out not proper
     def checkRate(self, rate):
+        # hours including shift > 40, but overtime not applied
         if self._hoursTillNow > 40 and rate != self._baseRate * 1.5:
             self._error = "Overtime mismatch. Not awarded overtime for working 40+ hours.\n"
+            # applied only to subshift split from overtime calculation
             if self._hoursTillNow - self._hours == 40:
                 self._error = "Adjusted rate to overtime rate."
                 rate = self._baseRate * 1.5
@@ -123,18 +126,19 @@ class shift():
                 self._hoursTillNow = 40
                 self._subShift = [self._job, self._rawStartTime, midpoint, self._rawEndTime, self._rawTips, self._tips]
 
-        elif self._baseRate != None and self._hoursTillNow < 40 and rate != self._baseRate:
-            if rate == self._baseRate * 1.5:
-                self._error = "Overtime mismatch. Overtime awarded under 40 hours.\n"
-                rate = self._baseRate
-                newHours = self._hoursTillNow + self._hours
-                if newHours > 40:
-                    rate = self._baseRate * 1.5
+        # hours inclding shift < 40 and overtime being wrongly applied
+        elif self._hoursTillNow < 40 and self._baseRate != None and rate == self._baseRate * 1.5:
+            self._error = "Overtime mismatch. Overtime awarded under 40 hours.\n"
+            rate = self._baseRate
+            newHours = self._hoursTillNow + self._hours
+            if newHours > 40:
+                rate = self._baseRate * 1.5
 
+        # correctly applying overtime
         elif self._hoursTillNow > 40 and rate == self._baseRate * 1.5:
             self._error = "Overtime."
             self._overtime = True
-
+        # normal shift
         else:
             self._baseRate = rate
 
@@ -174,11 +178,13 @@ class shift():
     def isFOH(self):
         return True if self._job in config.frontOfHouseJobs else False
     def isBOH(self):
-        return True if self._job in config.backOfHouseJobs else False
+        return True if self._job in config.backOfHouseJobs  else False
     def isReception(self):
-        return True if self._job in config.receptionJobs else False
+        return True if self._job in config.receptionJobs    else False
     def isManager(self):
-        return True if self._job in config.managerJobs else False
+        return True if self._job in config.managerJobs      else False
+
+    # returns location for use in output
     def getLocation(self):
         if self.isFOH():
             return "FOH"

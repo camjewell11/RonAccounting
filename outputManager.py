@@ -4,6 +4,7 @@ from tkinter.filedialog import askdirectory
 
 # prompts user for output location, defaults to outputLocation
 def getOutputLocation(outputLocation):
+    # hides second tk dialogue
     root = Tk()
     root.withdraw()
 
@@ -57,7 +58,7 @@ def generateOutput(outputFileName, workers, FOH, BOH, reception, managers, mTips
         for rowNum,row in enumerate(tipsData):
             tipsWorksheet.write_row(rowNum, 0, row)
 
-        summaryData = generateSummaryData(workers, frontOfHousePay, backOfHousePay, receptionPay, managersPay)
+        summaryData = generateSummaryData(frontOfHousePay, backOfHousePay, receptionPay, managersPay)
         for rowNum,row in enumerate(summaryData):
             summaryWorksheet.write_row(rowNum, 0, row)
 
@@ -67,11 +68,10 @@ def generateOutput(outputFileName, workers, FOH, BOH, reception, managers, mTips
 def getTipsData(workers, tipsData, mTips, aTips, mWorkers, aWorkers):
     for worker in workers:
         totalRawtips = 0
-        noPay = False
         for day in range(len(worker._workShifts)):
             for shift in worker._workShifts[day]:
+                # if worker can earn tips and shift is not overtime
                 if not shift.jobIsIgnored() and not shift._overtime:
-                    dayTips = []
                     numCoworkers = 0
                     if shift._morningShift:
                         dayTips = copy.deepcopy(mTips[day])
@@ -82,20 +82,19 @@ def getTipsData(workers, tipsData, mTips, aTips, mWorkers, aWorkers):
                     if shift._tips in dayTips:
                         dayTips.remove(shift._tips)
                     tipsData.append([shift._name, shift._startTime, shift._endTime, shift._rawTips, shift._tips, numCoworkers-1, sum(dayTips), (shift._tips+sum(dayTips))/numCoworkers])
-                    totalRawtips += shift._rawTips
+                # if worker cannot earn tips and tips are nonzero
                 elif shift._tips != 0:
-                    noPay = True
                     tipsData.append([shift._name, shift._startTime, shift._endTime, shift._rawTips, shift._tips, "-", "-", "-"])
-                    totalRawtips += shift._rawTips
-        if noPay:
-            tipsData.append(["","","",totalRawtips,"","","","",0])
-        if worker._adjustedTips != 0:
+
+                totalRawtips += shift._rawTips
+
+        if totalRawtips != 0:
             tipsData.append(["","","",totalRawtips,"","","","",worker._adjustedTips])
 
     return tipsData
 
 # parses other sheets for data to populate summary page
-def generateSummaryData(workers, frontOfHousePay, backOfHousePay, receptionPay, managersPay):
+def generateSummaryData(frontOfHousePay, backOfHousePay, receptionPay, managersPay):
     summaryData = frontOfHousePay
     summaryData.append([])
     summaryData[0] = ["Worker","Hours","Base Rate","Pay","Ind. Tips","Adj. Tips","Total"]
@@ -113,6 +112,7 @@ def generateSummaryData(workers, frontOfHousePay, backOfHousePay, receptionPay, 
     indTipsTotal  = 0
     adjTipsTotal  = 0
     totalTotal    = 0
+    # totals columns in summary for sanity check
     for entry in summaryData[1:]:
         if entry != []:
             if entry[3] != "-":
@@ -167,6 +167,7 @@ def getDetailsFromWorkers(workers, FOH, BOH, reception, managers, frontOfHousePa
                                 shift._hours, shift._rate, shift._tips, "-", shift._error]
                 shifts.append(shiftDetails)
         shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-",worker._adjustedTips,worker._pay,""])
+        shifts.append([])
 
     for worker in BOH:
         details = [worker._name, worker._BOHhours, worker._baseRate, worker._BOHwage]
@@ -177,6 +178,7 @@ def getDetailsFromWorkers(workers, FOH, BOH, reception, managers, frontOfHousePa
                                 shift._hours, shift._rate, "-", "-", shift._error]
                 shifts.append(shiftDetails)
         shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-","-",worker._pay,""])
+        shifts.append([])
 
     for worker in reception:
         details = [worker._name, worker._REChours, worker._baseRate, worker._tips, worker._RECwage]
@@ -187,6 +189,7 @@ def getDetailsFromWorkers(workers, FOH, BOH, reception, managers, frontOfHousePa
                                 shift._hours, shift._rate, "-", "-", shift._error]
                 shifts.append(shiftDetails)
         shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-",worker._tips,worker._pay,""])
+        shifts.append([])
 
     for worker in managers:
         details = [worker._name, worker._weeklyHours, worker._tips]
@@ -197,6 +200,7 @@ def getDetailsFromWorkers(workers, FOH, BOH, reception, managers, frontOfHousePa
                                 shift._hours, shift._rate, "-", "-", shift._error]
                 shifts.append(shiftDetails)
         shifts.append([worker._name+" Total","-","-","-","-",worker._weeklyHours,"-","-","",""])
+        shifts.append([])
 
     totalTips = 0
     totalPay = 0

@@ -60,14 +60,6 @@ class worker():
     def setPostTipWage(self, postTipWage): # pay with adjusted tips
         self._pay = postTipWage
 
-    def haveMultipleLocations(self):
-        days = sum(self._workShifts, [])
-        shifts = []
-        for shift in days:
-            shifts.append(shift.getLocation())
-
-        return True if len(set(shifts)) != 1 else False
-
 # removes all data without Shift tag in data
 def trimData(data, start, end):
     trimmedData = {}

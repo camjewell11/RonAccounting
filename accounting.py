@@ -16,9 +16,8 @@ def createWorkers(data):
                 endRow = x
                 newWorker = Worker.worker(data, startRow, endRow)
                 workers.append(newWorker)
-                startRow = x
-            else:
-                startRow = x
+            startRow = x
+
     return workers
 
 # split worker pay totals by location
@@ -35,7 +34,6 @@ def workerLocationPostProcessing(workers):
                 elif shift.isReception():
                     worker._RECwage += shift._hours*shift._rate
                     worker._REChours += shift._hours
-    return workers
 
 # if clock-in/out changes are made that affect rate due to overtime,
 # recreate shifts and pay calculations for corrected shifts;
@@ -79,8 +77,6 @@ def tipsPostProcessing(workers):
                         worker._workShifts[day][shift+1]._tips = afternoonAverage
                         worker._workShifts[day][shift]._tips = doubleShiftTips - afternoonAverage
 
-    return workers
-
 # returns list of shifts on same day as provided shift
 def findCoworkers(workers, findShift, secondHalf):
     morningCoworkers = []
@@ -90,10 +86,10 @@ def findCoworkers(workers, findShift, secondHalf):
             for shift in day:
                 # shift isn't self and is same time of day
                 if shift != findShift and shift._morningShift == findShift._morningShift:
-                    if shift._startTime[:10] == findShift._startTime[:10] and not shift.jobIsIgnored():
+                    if shift._weekDay == findShift._weekDay and not shift.jobIsIgnored():
                         morningCoworkers.append(shift)
                 if shift != secondHalf and shift._afternoonShift == secondHalf._afternoonShift:
-                    if shift._startTime[:10] == secondHalf._startTime[:10] and not shift.jobIsIgnored():
+                    if shift._weekDay == secondHalf._weekDay and not shift.jobIsIgnored():
                         afternoonCoworkers.append(shift)
 
     return morningCoworkers, afternoonCoworkers
@@ -105,8 +101,7 @@ def calculateTotals(workers):
         # calculates wage totals per shift per day
         for day in worker._workShifts:
             for shift in day:
-                if shift != None:
-                    weeklyPay += shift._rate*shift._hours
+                weeklyPay += shift._rate*shift._hours
         worker.setPreTipWage(weeklyPay)
 
 # sums tips per shift by day of the week
@@ -143,7 +138,7 @@ def calculateWorkersPerShift(workers):
                 elif shift.isAfternoonShift() and not shift.jobIsIgnored() and not shift._overtime:
                     aShifts[day] += 1
 
-        # workers can have more than one shift object per object (overtime, clock-int/out,
+        # workers can have more than one shift object per day (overtime, clock-int/out,
         # breaks), but only increment once per shift counter
         for day in range(len(mShifts)):
             if mShifts[day] != 0:
@@ -162,14 +157,13 @@ def calculatePayroll(workers, morningTips, afternoonTips, morningWorkers, aftern
         # only count tips when working and allowed tips
         for day in range(len(worker._workShifts)):
             for shift in worker._workShifts[day]:
-                if shift.isMorningShift() and not shift.jobIsIgnored() and not shift._overtime:
-                    totalTips += sum(morningTips[day]) / morningWorkers[day]
-                elif shift.isAfternoonShift() and not shift.jobIsIgnored() and not shift._overtime:
-                    totalTips += sum(afternoonTips[day]) / afternoonWorkers[day]
+                if not shift.jobIsIgnored() and not shift._overtime:
+                    if shift.isMorningShift():
+                        totalTips += sum(morningTips[day]) / morningWorkers[day]
+                    elif shift.isAfternoonShift():
+                        totalTips += sum(afternoonTips[day]) / afternoonWorkers[day]
         worker._adjustedTips = totalTips
         worker.setPostTipWage(totalPay + totalTips)
-
-    return workers
 
 # split FOH, BOH, and reception into their own lists
 # workers that worked both reception and bar have their shifts split into FOH and BOH
@@ -180,49 +174,48 @@ def sortWorkersByLocation(workers):
     managers = []
     for worker in workers:
         # create temporary copies of workers to populate positional attendance with empty shifts
-        FOHworkerCopy = copy.deepcopy(worker)
-        FOHworkerCopy._workShifts = [[], [], [], [], [], [], []]
-        BOHworkerCopy = copy.deepcopy(worker)
-        BOHworkerCopy._workShifts = [[], [], [], [], [], [], []]
-        recWorkerCopy = copy.deepcopy(worker)
-        recWorkerCopy._workShifts = [[], [], [], [], [], [], []]
-        managerCopy   = copy.deepcopy(worker)
-        managerCopy  ._workShifts = [[], [], [], [], [], [], []]
+        FOHshifts = [[], [], [], [], [], [], []]
+        BOHshifts = [[], [], [], [], [], [], []]
+        RECshifts = [[], [], [], [], [], [], []]
+        MANshifts = [[], [], [], [], [], [], []]
 
         # examine each shift to determine location
         for day in range(len(worker._workShifts)):
             for shift in worker._workShifts[day]:
                 if shift.isFOH():
-                    FOHworkerCopy._workShifts[day].append(shift)
+                    FOHshifts[day].append(shift)
                 elif shift.isBOH():
-                    BOHworkerCopy._workShifts[day].append(shift)
+                    BOHshifts[day].append(shift)
                 elif shift.isReception():
-                    recWorkerCopy._workShifts[day].append(shift)
+                    RECshifts[day].append(shift)
                 elif shift.isManager():
-                    managerCopy._workShifts[day].append(shift)
+                    MANshifts[day].append(shift)
 
         # if shifts added to copy, append to workers list
-        if FOHworkerCopy._workShifts != [[], [], [], [], [], [], []]:
+        if FOHshifts != [[], [], [], [], [], [], []]:
+            FOHworkerCopy = copy.deepcopy(worker)
+            FOHworkerCopy._workShifts = FOHshifts
             FOH.append(FOHworkerCopy)
-        if BOHworkerCopy._workShifts != [[], [], [], [], [], [], []]:
+        if BOHshifts != [[], [], [], [], [], [], []]:
+            BOHworkerCopy = copy.deepcopy(worker)
             BOH.append(BOHworkerCopy)
-        if recWorkerCopy._workShifts != [[], [], [], [], [], [], []]:
+        if RECshifts != [[], [], [], [], [], [], []]:
+            recWorkerCopy = copy.deepcopy(worker)
             reception.append(recWorkerCopy)
-        if managerCopy._workShifts != [[], [], [], [], [], [], []]:
-            managers.append(managerCopy)
+        if MANshifts != [[], [], [], [], [], [], []]:
+            manWorkerCopy = copy.deepcopy(worker)
+            managers.append(manWorkerCopy)
 
     return FOH, BOH, reception, managers
 
 def main():
     # reads command line arguments if there are any
-    proceed = inputManager.parseCommandLineOptions()
-
-    if proceed:
+    if inputManager.parseCommandLineOptions():
         # get input filename, defaults to dataFile
         fileName    = inputManager.getInputFile(dataFile)
-        # get data from file
+        # get all data from file
         rawData     = inputManager.getDataFromFile(fileName)
-        # pull out useful data
+        # pull out useful data ignores some tips and sales columns
         trimmedData = inputManager.trimFileData(rawData)
         # consolidate into single line entries
         usefulData  = inputManager.consolidateData(trimmedData)
@@ -230,18 +223,18 @@ def main():
         # create worker objects with their own shift objects
         workers = createWorkers(usefulData)
         # recursive check of tip calculations
-        workers = tipsPostProcessing(workers)
+        tipsPostProcessing(workers)
         # sets workers' wage based on hours and rate per shift
         calculateTotals(workers)
         # check pay/hours totals for workers who worked multiple locations
-        workers = workerLocationPostProcessing(workers)
+        workerLocationPostProcessing(workers)
 
         # calculate total tips per shift; returns morning list and afternoon value for each day in list
         mTips,aTips = calculateTotalTipsPerShift(workers)
         # splits workers into list by shift for use in tips averaging
         mWorkers, aWorkers = calculateWorkersPerShift(workers)
         # finalizes all total pay (tips and wage)
-        workers = calculatePayroll(workers, mTips, aTips, mWorkers, aWorkers)
+        calculatePayroll(workers, mTips, aTips, mWorkers, aWorkers)
         # returns lists of workers by location for use in output
         FOH,BOH,reception,managers = sortWorkersByLocation(workers)
 

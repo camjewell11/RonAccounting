@@ -147,7 +147,7 @@ class shift():
     # returns true if job title contains keyword in ignoredWorkers list
     def jobIsIgnored(self):
         for ignoredJob in config.ignoredTipsWorkers:
-            if ignoredJob in self._job.lower():
+            if ignoredJob in self._job:
                 return True
         return False
 

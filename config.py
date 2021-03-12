@@ -1,5 +1,5 @@
-ignoredTipsWorkers = [ "cook", "reception", "manager", "mezzanine server" ]
-frontOfHouseJobs   = [ "Bartender", "Mezzanine Bartender" ]
+ignoredTipsWorkers = [ "Prep Cook", "Line Cook", "Reception", "Manager", "Mezzanine Server" ]
+frontOfHouseJobs   = [ "Bartender", "Mezzanine Bartender", "Assistant Manager" ]
 backOfHouseJobs    = [ "Line Cook", "Prep Cook" ]
 receptionJobs      = [ "Reception1", "Reception2" ]
 managerJobs        = [ "Manager", "Comp" ]
